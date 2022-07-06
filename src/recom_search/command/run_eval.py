@@ -202,6 +202,7 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
         #     continue
 
         logging.info(f"\n\n===Inp Doc: {document[:2000]}\n---Sum: {ref_sum}")
+        logging.info(f"\nExample ID: {example['id']}")
         param_sim_function = {
             'ngram_suffix': args.ngram_suffix,
             'len_diff': args.len_diff,

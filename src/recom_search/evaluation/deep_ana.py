@@ -84,7 +84,7 @@ def get_finished_hypo(folder_dir, files):
     return statistics.mean(es)
 
 
-def evaluate_grammar_gector(all_files, config_name, dict_io_text, dict_io_table, nexamples=1000, model_repo='/mnt/data1/jcxu/gector', proj_dir='/mnt/data1/jcxu/lattice-sum/'):
+def evaluate_grammar_gector(all_files, config_name, dict_io_text, dict_io_table, nexamples=1000, model_repo='./', proj_dir='./'):
     file_txt = [".".join(f.split('.')[:-1])+'.txt' for f in all_files]
     all_lines = []
     for f in file_txt:
@@ -118,7 +118,7 @@ def evaluate_grammar_gector(all_files, config_name, dict_io_text, dict_io_table,
     return err
 
 
-def deep_analyze_main(args, config_name, dict_io_data, dict_io_text, dict_io_stat, dict_io_table,  proj_dir='/mnt/data1/jcxu/lattice-sum/'):
+def deep_analyze_main(args, config_name, dict_io_data, dict_io_text, dict_io_stat, dict_io_table,  proj_dir='/mnt/data1/prasann/latticegen/lattice-generation/'):
     raw_files = os.listdir(os.path.join(dict_io_data, config_name))
     raw_files_stat = os.listdir(os.path.join(dict_io_stat, config_name))
     # get number of finished nodes from data, analyze model parameter, gather results to json and a latex table

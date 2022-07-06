@@ -6,6 +6,7 @@ import torch
 from transformers import BartTokenizer, BartForConditionalGeneration
 import os
 import random
+import pandas as pd
 random.seed(2021)
 
 def render_address(root = 'output'):
@@ -18,7 +19,7 @@ def render_address(root = 'output'):
     }
     return d
 
-def read_mt_data(path='/mnt/data1/jcxu/lattice-sum/mt-data/use', name='zh-en'):
+def read_mt_data(path='./mt-data/use', name='zh-en'):
     src = name[:2]
     tgt = name[3:]
     with open(os.path.join(path, f"{name}.{src}"), 'r') as fd:
@@ -31,12 +32,12 @@ def read_mt_data(path='/mnt/data1/jcxu/lattice-sum/mt-data/use', name='zh-en'):
     return zip(slines, tlines)
 
 
-MODEL_CACHE = '/mnt/data1/jcxu/cache'
+MODEL_CACHE = './cache'
 
 
 def setup_model(task='sum', dataset='xsum', device_name='cuda:2'):
 
-    device = torch.device(device_name)
+    #device = torch.device(device_name)
     if task == 'sum':
         model_name = 'facebook/bart-large-xsum'
         tokenizer = BartTokenizer.from_pretrained(
@@ -48,10 +49,15 @@ def setup_model(task='sum', dataset='xsum', device_name='cuda:2'):
 
         logging.info('Loading dataset')
         if dataset == 'xsum':
-            dataset = load_dataset("xsum", split='validation')
+            dataset = load_dataset("xsum", split='test')
         elif dataset == 'cnndm':
-            dataset = load_dataset("cnn_dailymail", split='validation')
+            dataset = load_dataset("cnn_dailymail", split='test')
             print("CNNDM mean token in ref 56")
+
+        #prasann code to get only maynez part of datase
+        print("filtering to maynez data")
+        df = pd.read_csv('./maynez_docset.csv')
+        dataset = dataset.select(df['dataind'].unique())
         dec_prefix = [tokenizer.eos_token_id]
 
     elif task == 'mt1n':
@@ -89,7 +95,7 @@ def setup_model(task='sum', dataset='xsum', device_name='cuda:2'):
         dec_prefix = [tokenizer.eos_token_id,
                       tokenizer.lang_code_to_id["en_XX"]]
         logging.info(f"{tokenizer.decode(dec_prefix)}")
-    model = model.to(device)
+    #model = model.to(device)
     return tokenizer, model, dataset, dec_prefix
 
 
