@@ -281,3 +281,7 @@ dmypy.json
 *.txt
 *.log
 *.pkl
+
+cache/
+hfcache/
+roberta_1_gectorv2.th
