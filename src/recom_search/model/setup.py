@@ -10,6 +10,8 @@ import os
 import random
 random.seed(2021)
 
+# TODO need to fix cache stuff
+
 def render_address(root = 'output') ->dict:
     """
     create name of subdirectories
