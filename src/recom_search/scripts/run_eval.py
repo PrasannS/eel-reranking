@@ -5,9 +5,8 @@ from tqdm import tqdm
 import os
 import pickle
 
-from datasets.load import import_main_class
 from src.recom_search.model.model_output import SearchModelOutput
-from src.recom_search.model.model_astar import a_star, a_star_baseline
+from recom_search.model.model_bfs import a_star, bfs
 
 from src.recom_search.evaluation.eval_bench import rouge_single_pair
 import pandas as pd
@@ -41,7 +40,7 @@ def adjust_batch_size(max_len, task, dataset):
     return max(bs,1)
 
 
-def run_recom_bs(args, model, input_doc, dec_prefix, param_sim_function, adjust=True):
+def run_bs_recombination(args, model, input_doc, dec_prefix, param_sim_function, adjust=True):
     input_ids = tokenizer(
         input_doc, return_tensors="pt").input_ids.to(args.device)
     if args.max_len == -1:
@@ -73,8 +72,8 @@ def run_recom_sample(args, model, input_doc, dec_prefix, param_sim_function) -> 
     return mo
 
 
-def run_a_star_baseline(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search):
-
+def run_bfs(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search):
+    """
     config_heu = {
         'heu_seq_score': args.heu_seq_score,
         'heu_seq_score_len_rwd': args.heu_seq_score_len_rwd,
@@ -82,21 +81,21 @@ def run_a_star_baseline(args, model, tokenizer, inp, dec_prefix, param_sim_funct
         'heu_ent': args.heu_ent,
         'heu_word': args.heu_word
     }
-    input_ids = tokenizer(
-        inp, return_tensors="pt").input_ids.to(args.device)
+    """
+    input_ids = tokenizer(inp, return_tensors="pt").input_ids.to(args.device)
     if args.max_len == -1:
         cur_max_len = input_ids.squeeze().size()[0] * 2
         comp_budget = cur_max_len * args.beam_size
     else:
         comp_budget = args.max_len * args.beam_size
         cur_max_len = args.max_len
-    output = a_star_baseline(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, param_sim_function=param_sim_function, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=5, comp_budget=comp_budget, config_heu=config_heu, config_search=config_search)
+    output = bfs(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, param_sim_function=param_sim_function, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=args.k_best, comp_budget=comp_budget, config_heu=None, config_search=config_search)
 
     mo = SearchModelOutput(ends=output)
     return mo
 
 
-def run_a_star(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search) -> SearchModelOutput:
+def run_bfs_recombination(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search) -> SearchModelOutput:
 
     config_heu = {
         'heu_seq_score': args.heu_seq_score,
@@ -180,7 +179,7 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
     if not isinstance(dataset, zip):
         dataset = dataset.shuffle(seed=2021)
 
-    logging.info(f"truncate dataset to {nexample}")
+    logging.info(f"Truncate dataset to {nexample} examples")
     for idx, example in enumerate(tqdm(dataset)):
         cnt += 1
         if args.task.startswith('mt'):
@@ -192,17 +191,23 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
             document = example['article']
             doc_id = example['id']
             ref_sum = example['highlights']
-        else:
+        elif args.dataset == 'xsum':
             document = example['document']
             sents = document.split('\n')
             inp = "\n".join(sents[:10])[:5000]
             ref_sum = example['summary']
             doc_id = example['id']
+        elif args.dataset == 'custom':
+            document = example[0]
+            ref_sum = example[1]
+            doc_id =  'undefined'
+            inp = document
+        else:
+            raise NotImplementedError("for customized dataset, use custom as the name of dataset and document|ref|uid for fields")
         # if 'Apple' not in document:
         #     continue
 
-        logging.info(f"\n\n===Inp Doc: {document[:2000]}\n---Sum: {ref_sum}")
-        logging.info(f"\nExample ID: {example['id']}")
+        logging.info(f"\n\n===Input Doc/Src: {document[:2000]}\n---Sum/Tgt: {ref_sum}")
         param_sim_function = {
             'ngram_suffix': args.ngram_suffix,
             'len_diff': args.len_diff,
@@ -211,7 +216,7 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
         config_search = {
             'post': args.post,
             'post_ratio': args.post_ratio,  # ratio of model calls left for post finishing
-            'adhoc': args.adhoc,
+            'dfs_expand': args.dfs_expand,
             'heu': args.use_heu
         }
         combined_dict = {**config_search, **param_sim_function}
@@ -222,8 +227,7 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
         config_name, fname = render_name(
             args.task, args.dataset, args.model, doc_id, document[:10], args.beam_size, args.max_len, combined_dict)
         fname += '.pkl'
-        Path(os.path.join(wt_dir, config_name)).mkdir(
-            parents=True, exist_ok=True)
+        Path(os.path.join(wt_dir, config_name)).mkdir(parents=True, exist_ok=True)
         if os.path.exists(os.path.join(wt_dir, config_name, fname)):
             logging.info(f"File exists. Skip.")
             if cnt > nexample:
@@ -232,17 +236,17 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
         
         if args.model in ['dbs', 'bs', 'greedy', 'topp', 'temp']:
             output = run_baseline(args, model, inp, dec_prefix)
-        elif args.model == 'recom_bs':
-            output = run_recom_bs(
+        elif args.model == 'bs_recom':
+            output = run_bs_recombination(
                 args, model, inp, dec_prefix, param_sim_function)
-        elif args.model == 'recom_sample':
+        elif args.model == 'sample_recom':
             output = run_recom_sample(
                 args, model, inp, dec_prefix, param_sim_function)
-        elif args.model == 'astar':
-            output = run_a_star(
+        elif args.model == 'bfs_recom':
+            output = run_bfs_recombination(
                 args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search=config_search)
-        elif args.model == 'astar_base':
-            output = run_a_star_baseline(
+        elif args.model == 'bfs':
+            output = run_bfs(
                 args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search=config_search)
         output.reference = ref_sum
         output.doc_id = doc_id
