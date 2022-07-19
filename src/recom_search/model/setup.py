@@ -8,7 +8,9 @@ from transformers import BartTokenizer, BartForConditionalGeneration
 from transformers import AutoConfig, AutoModelForSeq2SeqLM,AutoTokenizer
 import os
 import random
+import pandas as pd
 random.seed(2021)
+os.environ['TRANSFORMERS_CACHE'] = '/mnt/data1/prasann/latticegen/lattice-generation/hfcache/'
 
 # TODO need to fix cache stuff
 
@@ -25,7 +27,28 @@ def render_address(root = 'output') ->dict:
     }
     return d
 
-def read_mt_data(path='./mt-data/use', name='zh-en'):
+import csv
+ENDE_BASE = "/mnt/data1/prasann/latticegen/lattice-generation/translation_data/news-commentary-v15.de-en.tsv"
+def hardcode_mt_data():
+    with open(ENDE_BASE) as file:
+        tsv_file = csv.reader(file, delimiter="\t")
+        i = 0
+        res = []
+        for f in tsv_file:
+            if i == 10000:
+                break
+            res.append(f)
+            i = i+1
+    tmpdf = pd.DataFrame(res)
+    tmpdf['de'] = tmpdf[0]
+    tmpdf['en'] = tmpdf[1]
+    return tmpdf['en'], tmpdf['de']
+
+def read_mt_data(path='./mt-data/use', name='en-de'):
+    #prasann, jank dataset setup, TODO do something cleaner here
+    if name=='en-de':
+        slines, tlines = hardcode_mt_data()
+        return zip(slines, tlines)
     src = name[:2]
     tgt = name[3:]
     with open(os.path.join(path, f"{name}.{src}"), 'r') as fd:
@@ -40,13 +63,16 @@ def read_mt_data(path='./mt-data/use', name='zh-en'):
 
 # MODEL_CACHE = '/mnt/data1/jcxu/cache'
 
+tokenizer = None
 
-def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cuda:2'):
+def setup_model(task='mt1n', dataset='en-de', model_name='facebook/mbart-large-50-one-to-many-mmt', device_name='cuda:2'):
     device = torch.device(device_name)
-    print(model_name)
-    config = AutoConfig.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    
+
+    task = 'mt1n'
+    dataset = 'en-de'
+    model_name='facebook/mbart-large-50-one-to-many-mmt'
+    global tokenizer
 
     if task == 'custom':
         # you need to store the input under the path_dataset folder
@@ -72,6 +98,7 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
         dec_prefix = [tokenizer.eos_token_id]
     elif task == 'mt1n':
         from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
+        print(model_name)
         model = MBartForConditionalGeneration.from_pretrained(
             "facebook/mbart-large-50-one-to-many-mmt")
         tokenizer = MBart50TokenizerFast.from_pretrained(
@@ -105,7 +132,7 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
         dec_prefix = [tokenizer.eos_token_id,
                       tokenizer.lang_code_to_id["en_XX"]]
         logging.info(f"{tokenizer.decode(dec_prefix)}")
-    #model = model.to(device)
+    model = model.to(device)
     return tokenizer, model, dataset, dec_prefix
 
 

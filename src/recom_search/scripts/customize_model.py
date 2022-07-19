@@ -1,3 +1,7 @@
+import os
+os.environ['TRANSFORMERS_CACHE'] = '/mnt/data1/prasann/latticegen/lattice-generation/hfcache/'
+
+
 """
 Import the model you would like to use in this file. 
 Tips:

@@ -272,6 +272,9 @@ dmypy.json
 # custom
 /mt-data
 /notebooks
+/qaware-decode
+/cometqemodel
+/translation_data
 .html
 .txt
 *.csv

@@ -14,8 +14,8 @@ def main() -> int:
 
     args = process_arg()
     logging.info(args)
-    args.task = 'sum'
-    args.dataset = 'xsum'
+    args.task = 'mt1n'
+    args.dataset = 'en-de'
 
     args.task = 'custom'
     args.dataset = 'custom_input'
