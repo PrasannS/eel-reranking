@@ -11,7 +11,9 @@
 #python rerank_score_cands.py -candfile="nucleus10fr_en"
 #python rerank_score_cands.py -candfile="nucleus25de"
 #python rerank_score_cands.py -candfile="nucleus25fr_en"
-python rerank_score_cands.py -candfile="beam1en_de"
+python rerank_score_cands.py -candfile="latoutputfr1"
+python rerank_score_cands.py -candfile="latfren60"
+
 #python rerank_score_cands.py -candfile="nucleus40fr_en"
 #python rerank_score_cands.py -candfile="latoutputfr1"
 #python rerank_score_cands.py -candfile="latoutputfr1"

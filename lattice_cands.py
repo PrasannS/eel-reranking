@@ -8,7 +8,7 @@ import os
 from src.recom_search.evaluation.analysis import derive_path, viz_result
 from transformers import AutoTokenizer
 
-language = "de"
+language = "fr"
 tokenizer = None
 MAX_SUBLEN = 10
 
@@ -20,7 +20,7 @@ else:
 all_shared_paths = []
 explored = []
 # using for french stuff that worked
-BASE = './output/data/sum_xsum_astar_base_16_100_False_0.4_True_False_4_5_zip_-1_0.0_0.9/'
+BASE = './output/data/sum_xsum_astar_base_16_60_False_0.4_True_False_4_5_zip_-1_0.0_0.9/'
 
 def load_save_data(fname):
     f = open(fname, 'rb')
@@ -297,7 +297,7 @@ latticecandjson = process_save_all_graphs()
 print(latticecandjson[0])
 
 import json
-tmpfile = open("./candoutputs/latde100"+".jsonl", "w")
+tmpfile = open("./candoutputs/latfren60"+".jsonl", "w")
 for l in latticecandjson:
     tmpfile.write(json.dumps(l))
     tmpfile.write('\n')
