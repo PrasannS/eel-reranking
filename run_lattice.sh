@@ -1,0 +1,1 @@
+PYTHONPATH=./ python src/recom_search/command/run_pipeline.py -nexample 150  -beam_size 16 -min_len 10 -max_len 60 -model astar_base -adhoc

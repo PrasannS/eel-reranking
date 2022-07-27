@@ -10,7 +10,7 @@ from src.recom_search.evaluation.analysis import derive_path, viz_result
 MAX_SUBLEN = 10
 all_shared_paths = []
 explored = []
-BASE = './output/data/sum_xsum_astar_16_15_False_0.4_True_False_4_5_zip_0.75_0.0_0.9/'
+BASE = './output/data/sum_xsum_astar_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9'
 
 def load_save_data(fname):
     f = open(fname, 'rb')

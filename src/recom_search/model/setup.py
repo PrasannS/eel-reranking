@@ -1,23 +1,17 @@
-
 import sys
 import logging
 from datasets import load_dataset
 import argparse
 import torch
 from transformers import BartTokenizer, BartForConditionalGeneration
-from transformers import AutoConfig, AutoModelForSeq2SeqLM,AutoTokenizer
 import os
 import random
 import pandas as pd
+import mt_data
+
 random.seed(2021)
-os.environ['TRANSFORMERS_CACHE'] = '/mnt/data1/prasann/latticegen/lattice-generation/hfcache/'
 
-# TODO need to fix cache stuff
-
-def render_address(root = 'output') ->dict:
-    """
-    create name of subdirectories
-    """
+def render_address(root = 'output'):
     d = {
         'data':os.path.join(root, 'data'),
         'html':os.path.join(root, 'html'),
@@ -30,6 +24,7 @@ def render_address(root = 'output') ->dict:
 import csv
 ENDE_BASE = "/mnt/data1/prasann/latticegen/lattice-generation/translation_data/news-commentary-v15.de-en.tsv"
 def hardcode_mt_data():
+    """
     with open(ENDE_BASE) as file:
         tsv_file = csv.reader(file, delimiter="\t")
         i = 0
@@ -42,11 +37,12 @@ def hardcode_mt_data():
     tmpdf = pd.DataFrame(res)
     tmpdf['de'] = tmpdf[0]
     tmpdf['en'] = tmpdf[1]
-    return tmpdf['en'], tmpdf['de']
+    """
+    fren_data = mt_data.load_generate_set(808, "fr_en")
+    return fren_data['fr'], fren_data['en']
 
 def read_mt_data(path='./mt-data/use', name='en-de'):
-    #prasann, jank dataset setup, TODO do something cleaner here
-    if name=='en-de':
+    if name=='en-de' or name=='fr-en':
         slines, tlines = hardcode_mt_data()
         return zip(slines, tlines)
     src = name[:2]
@@ -61,34 +57,30 @@ def read_mt_data(path='./mt-data/use', name='en-de'):
     return zip(slines, tlines)
 
 
-# MODEL_CACHE = '/mnt/data1/jcxu/cache'
+MODEL_CACHE = './cache'
 
-tokenizer = None
 
 def setup_model(task='mt1n', dataset='en-de', model_name='facebook/mbart-large-50-one-to-many-mmt', device_name='cuda:2'):
+    #TODO change with dset, un-hard-code this
+    task = 'mtn1'
+    dataset = 'fr-en'
+    model_name='facebook/mbart-large-50-many-to-one-mmt'
+    print("Running stuff here!")
     device = torch.device(device_name)
-    
+    if task == 'sum':
+        model_name = 'facebook/bart-large-xsum'
+        tokenizer = BartTokenizer.from_pretrained(
+            model_name, cache_dir=MODEL_CACHE)
 
-    task = 'mt1n'
-    dataset = 'en-de'
-    model_name='facebook/mbart-large-50-one-to-many-mmt'
-    global tokenizer
+        logging.info('Loading model')
+        model = BartForConditionalGeneration.from_pretrained(
+            model_name, cache_dir=MODEL_CACHE)
 
-    if task == 'custom':
-        # you need to store the input under the path_dataset folder
-        dec_prefix = [tokenizer.eos_token_id]
-        with open(os.path.join(dataset, 'input.txt'), 'r') as fd:
-            slines = fd.read().splitlines()
-        with open(os.path.join(dataset, 'output.txt'), 'r') as fd:
-            tlines = fd.read().splitlines()
-        dataset = zip(slines, tlines)
-    elif task == 'sum':
         logging.info('Loading dataset')
         if dataset == 'xsum':
             dataset = load_dataset("xsum", split='test')
         elif dataset == 'cnndm':
-            raise NotImplementedError("not supported")
-            dataset = load_dataset("cnn_dailymail", split='validation')
+            dataset = load_dataset("cnn_dailymail", split='test')
             print("CNNDM mean token in ref 56")
 
         #prasann code to get only maynez part of datase
@@ -96,13 +88,13 @@ def setup_model(task='mt1n', dataset='en-de', model_name='facebook/mbart-large-5
         df = pd.read_csv('./maynez_docset.csv')
         dataset = dataset.select(df['dataind'].unique())
         dec_prefix = [tokenizer.eos_token_id]
+
     elif task == 'mt1n':
         from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
-        print(model_name)
         model = MBartForConditionalGeneration.from_pretrained(
-            "facebook/mbart-large-50-one-to-many-mmt")
+            "facebook/mbart-large-50-one-to-many-mmt")#, cache_dir=MODEL_CACHE)
         tokenizer = MBart50TokenizerFast.from_pretrained(
-            "facebook/mbart-large-50-one-to-many-mmt", src_lang="en_XX")
+            "facebook/mbart-large-50-one-to-many-mmt", src_lang="en_XX")#, cache_dir=MODEL_CACHE)
         assert dataset.startswith('en')
         tgt_lang = dataset[3:]
         dataset = read_mt_data(name=dataset)
@@ -117,7 +109,7 @@ def setup_model(task='mt1n', dataset='en-de', model_name='facebook/mbart-large-5
     elif task == 'mtn1':
         from transformers import MBartForConditionalGeneration, MBart50TokenizerFast
         model = MBartForConditionalGeneration.from_pretrained(
-            "facebook/mbart-large-50-many-to-one-mmt", )
+            "facebook/mbart-large-50-many-to-one-mmt")
         tokenizer = MBart50TokenizerFast.from_pretrained(
             "facebook/mbart-large-50-many-to-one-mmt")
         # dataset should be like "xx-en"
@@ -169,25 +161,20 @@ def setup_logger(name):
 
 
 def process_arg():
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('-device', type=str, default='cuda:2', help='name of device, eg. cuda:0 or cpu')
+    parser.add_argument('-device', type=str, default='cuda:2')
     parser.add_argument("-model", type=str, choices=[
-                        'dbs', 'bs', 'greedy', 'topp', 'temp', 'bs_recom', 'sample_recom', 'bfs','bfs_recom'], default='bs')
+                        'dbs', 'bs', 'greedy', 'topp', 'temp', 'recom_bs', 'recom_sample', 'astar','astar_base'], default='bs')
     parser.add_argument('-beam_size', type=int, default=15)
     parser.add_argument('-nexample', type=int, default=100)
-
     parser.add_argument('-task', type=str, default='sum',
-                        choices=['sum', 'mt1n', 'mtn1', 'custom'], help='for custom, you need to define your data IO')
+                        choices=['sum', 'mt1n', 'mtn1'])
     parser.add_argument('-dataset', default='xsum', type=str)
-    parser.add_argument('-hf_model_name', default='facebook/bart-large-xsum', type=str)
-
-    parser.add_argument('-path_output', type=str, default='custom_output')
-
     parser.add_argument('-top_p', type=float, default=0.9)
     parser.add_argument('-temp', type=float, default=1.5)
     parser.add_argument('-beam_group', type=int, default=5)
     parser.add_argument('-hamming_penalty', type=float, default=0.0)
-    
     parser.add_argument('-extra_steps', type=int, default=10)
     parser.add_argument('-min_len', type=int, default=13)
     parser.add_argument('-max_len', type=int, default=35)
@@ -195,7 +182,6 @@ def process_arg():
     parser.add_argument('-ngram_suffix', type=int, default=4)
     parser.add_argument('-len_diff', type=int, default=5)
 
-    parser.add_argument('-k_best', type=int, default=5, help='Max number of next step prediction considered. LM will yield prob of vocab_size, and we only consider top_k_best and put them in the search frontier.')
     parser.add_argument('-avg_score', type=float, default=-1,
                         help='average model score coefficient. typical numbers like 0.6 or 0.8 or 0.9')
 
@@ -203,12 +189,11 @@ def process_arg():
                         const=True, default=False, help='our model: do we use heuristic')
     parser.add_argument('-post', type=str2bool, nargs='?',
                         const=True, default=False, help='our model: enforce the model to generate after exploration')
-    parser.add_argument('-dfs_expand', type=str2bool, nargs='?',
+    parser.add_argument('-adhoc', type=str2bool, nargs='?',
                         const=True, default=False, help='our model: always generate till the end once touch a node')
     parser.add_argument('-post_ratio', type=float, default=0.4,
                         help='our model: ratio of resource allocation')
-    
-    # start of depricated
+
     parser.add_argument('-heu_seq_score', type=float, default=0.0,
                         help='Heuristic: consider the score of previously generated sequence. this is the weight term for that')
     parser.add_argument('-heu_seq_score_len_rwd', type=float,
@@ -219,10 +204,16 @@ def process_arg():
                         help='Heuristic for entropy.')
     parser.add_argument('-heu_word', type=float, default=0.0,
                         help='Heuristic for good token.')
-    # end of depricated
     parser.add_argument('-merge', type=str, default='zip',
-                        choices=['zip', 'rcb'])
+                        choices=['zip', 'imp'])
+
 
     args = parser.parse_args()
     return args
 
+
+args = process_arg()
+dict_io = render_address()
+setup_logger(name=f"{args.task}_{args.model}_{args.dataset}")
+tokenizer, model, dataset, dec_prefix = setup_model(
+    args.task, args.dataset, args.device)

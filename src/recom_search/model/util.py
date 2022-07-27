@@ -1,22 +1,18 @@
-
+from transformers import MBart50TokenizerFast
 import statistics
 import torch
 import logging
+
+from statistics import mode
+
 from typing import List
 
-from src.recom_search.model.exec_setup import tokenizer
-import random
-import string
+from src.recom_search.model.setup import tokenizer
 
 debug = False    # fake model output
 # debug = True    # fake model output
 
 
-def get_nodes_for_dec_prefix(dec_prefix):
-    pass
-
-def gen_rand_id(N=10):
-    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(N))
 
 
 def filter_by_score(group: List, top_k=20):

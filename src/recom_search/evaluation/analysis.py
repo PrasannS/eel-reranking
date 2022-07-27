@@ -1,7 +1,7 @@
 from pathlib import Path
 from src.recom_search.evaluation.eval_bench import _get_ngrams, eval_main, bleu_scorer, group_bleu, self_bleu, self_edit_distance
-#from src.recom_search.model.setup import tokenizer, model, dataset, dec_prefix, args, dict_io
-#from src.recom_search.command.run_eval import run_model
+from src.recom_search.model.setup import tokenizer, model, dataset, dec_prefix, args, dict_io
+from src.recom_search.command.run_eval import run_model
 from src.recom_search.model.util import render_config_name
 import pickle
 from typing import Dict, List
@@ -413,8 +413,11 @@ def analyze_main(config_name, dict_io_data, dict_io_text, dict_io_stat, dict_io_
     l = len(raw_files)
     # analyze_data(raw_files[0], config_name, dict_io_data=dict_io_data, dict_io_text=dict_io_text, dict_io_html=dict_io_html,dict_io_stat=dict_io_stat)
     for f in raw_files:
-        analyze_data(f, config_name, dict_io_data=dict_io_data,
-                     dict_io_text=dict_io_text, dict_io_html=dict_io_html, dict_io_stat=dict_io_stat)
+        try:
+            analyze_data(f, config_name, dict_io_data=dict_io_data,
+                        dict_io_text=dict_io_text, dict_io_html=dict_io_html, dict_io_stat=dict_io_stat)
+        except:
+            print("analysis error")
     # with Pool(3) as pool:
     #     pool.starmap(analyze_data, zip(raw_files, [config_name]*l, [dict_io_data]*l, [dict_io_text]*l,  [dict_io_html]*l, [dict_io_stat]*l))
 
@@ -474,7 +477,7 @@ if __name__ == "__main__":
     config_search = {
         'post': args.post,
         'post_ratio': args.post_ratio,  # ratio of model calls left for post finishing
-        'dfs_expand': args.dfs_expand,
+        'adhoc': args.adhoc,
         'heu': args.use_heu
     }
     combined_dict = {**config_search, **param_sim_function}
