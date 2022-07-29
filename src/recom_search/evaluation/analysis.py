@@ -413,11 +413,8 @@ def analyze_main(config_name, dict_io_data, dict_io_text, dict_io_stat, dict_io_
     l = len(raw_files)
     # analyze_data(raw_files[0], config_name, dict_io_data=dict_io_data, dict_io_text=dict_io_text, dict_io_html=dict_io_html,dict_io_stat=dict_io_stat)
     for f in raw_files:
-        try:
-            analyze_data(f, config_name, dict_io_data=dict_io_data,
-                        dict_io_text=dict_io_text, dict_io_html=dict_io_html, dict_io_stat=dict_io_stat)
-        except:
-            print("analysis error")
+        analyze_data(f, config_name, dict_io_data=dict_io_data,
+                     dict_io_text=dict_io_text, dict_io_html=dict_io_html, dict_io_stat=dict_io_stat)
     # with Pool(3) as pool:
     #     pool.starmap(analyze_data, zip(raw_files, [config_name]*l, [dict_io_data]*l, [dict_io_text]*l,  [dict_io_html]*l, [dict_io_stat]*l))
 
@@ -477,7 +474,7 @@ if __name__ == "__main__":
     config_search = {
         'post': args.post,
         'post_ratio': args.post_ratio,  # ratio of model calls left for post finishing
-        'adhoc': args.adhoc,
+        'dfs_expand': args.dfs_expand,
         'heu': args.use_heu
     }
     combined_dict = {**config_search, **param_sim_function}

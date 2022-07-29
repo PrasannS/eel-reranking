@@ -1,12 +1,13 @@
-d = './output/data/sum_xsum_bs_16_35_False_0.4_False_False_4_5_zip_-1_0.0_0.9'
-d = './output/data/sum_xsum_dbs_16_35_False_0.4_False_False_4_5_zip_-1_0.0_0.9'
+d = '/mnt/data1/jcxu/lattice-sum/output/data/sum_xsum_bs_16_35_False_0.4_False_False_4_5_zip_-1_0.0_0.9'
+d = '/mnt/data1/jcxu/lattice-sum/output/data/sum_xsum_dbs_16_35_False_0.4_False_False_4_5_zip_-1_0.0_0.9'
 dirs = [
-    './output/data/mtn1_zh-en_bs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9',
-'./output/data/mtn1_zh-en_dbs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9', 
-'./output/data/mtn1_fr-en_bs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9',
-'./output/data/mtn1_fr-en_dbs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9',
-'./output/data/mt1n_en-fr_bs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9',
-'./output/data/mt1n_en-fr_dbs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9'
+    '/mnt/data1/jcxu/lattice-sum/output/data/mtn1_zh-en_bs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9',
+'/mnt/data1/jcxu/lattice-sum/output/data/mtn1_zh-en_dbs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9', 
+'/mnt/data1/jcxu/lattice-sum/output/data/mtn1_fr-en_bs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9',
+'/mnt/data1/jcxu/lattice-sum/output/data/mtn1_fr-en_dbs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9',
+'/mnt/data1/jcxu/lattice-sum/output/data/mt1n_en-fr_bs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9',
+'/mnt/data1/jcxu/lattice-sum/output/data/mt1n_en-fr_dbs_8_-1_False_0.4_False_False_4_5_zip_-1_0.0_0.9'
+
 ]
 import os
 import pickle

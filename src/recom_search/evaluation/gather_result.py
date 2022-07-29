@@ -1,5 +1,5 @@
 
-fdir = './output/stat'
+fdir = '/mnt/data1/jcxu/lattice-sum/output/stat'
 import json
 
 import os

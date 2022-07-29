@@ -84,7 +84,7 @@ def get_finished_hypo(folder_dir, files):
     return statistics.mean(es)
 
 
-def evaluate_grammar_gector(all_files, config_name, dict_io_text, dict_io_table, nexamples=1000, model_repo='./', proj_dir='./'):
+def evaluate_grammar_gector(all_files, config_name, dict_io_text, dict_io_table, nexamples=1000, model_repo='/mnt/data1/jcxu/gector', proj_dir='/mnt/data1/jcxu/lattice-sum/'):
     file_txt = [".".join(f.split('.')[:-1])+'.txt' for f in all_files]
     all_lines = []
     for f in file_txt:
@@ -118,7 +118,7 @@ def evaluate_grammar_gector(all_files, config_name, dict_io_text, dict_io_table,
     return err
 
 
-def deep_analyze_main(args, config_name, dict_io_data, dict_io_text, dict_io_stat, dict_io_table,  proj_dir='/mnt/data1/prasann/latticegen/lattice-generation/'):
+def deep_analyze_main(args, config_name, dict_io_data, dict_io_text, dict_io_stat, dict_io_table,  proj_dir='/mnt/data1/jcxu/lattice-sum/'):
     raw_files = os.listdir(os.path.join(dict_io_data, config_name))
     raw_files_stat = os.listdir(os.path.join(dict_io_stat, config_name))
     # get number of finished nodes from data, analyze model parameter, gather results to json and a latex table
@@ -146,7 +146,7 @@ def deep_analyze_main(args, config_name, dict_io_data, dict_io_text, dict_io_sta
 
     # keys in args
     arg_keys = ['task', 'dataset', 'model', 'beam_size', 'max_len'] + ['ngram_suffix',
-                                                                       'len_diff', 'merge', 'post_ratio', 'adhoc', 'avg_score', 'heu_seq_score_len_rwd', 'top_p']
+                                                                       'len_diff', 'merge', 'post_ratio', 'dfs_expand', 'avg_score', 'heu_seq_score_len_rwd', 'top_p']
     for key in arg_keys:
         final[key] = getattr(args, key)
     final['error'] = error_rate

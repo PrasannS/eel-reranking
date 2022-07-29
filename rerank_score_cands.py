@@ -99,7 +99,7 @@ def comet_rerank_info(rrk_info):
     print(first_comet_sco[1])
     return rer_comet_sco, first_comet_sco
     
-cheat = False
+cheat = True
 def get_reranked_cands(c_data):
     global allscores
     reranked_info = []
