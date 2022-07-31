@@ -1,30 +1,7 @@
-from distutils import filelist
 import pickle
-from tabnanny import check
-from unittest import result
-from weakref import finalize
-from matplotlib.cbook import get_sample_data
-import pandas as pd
 import os 
-from src.recom_search.evaluation.analysis import derive_path, viz_result
 from transformers import AutoTokenizer
 import argparse
-
-def process_args():
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-dataset', type=str)
-    parser.add_argument('-savename', type=str)
-    parser.add_argument('-device', type=str, default='cuda:2')
-    parser.add_argument('-exploded', type=bool, default=False)
-    parser.add_argument('-base', type=str, default="")
-    args = parser.parse_args()
-    return args
-
-
-all_shared_paths = []
-explored = []
-# using for french stuff that worked
 
 def load_save_data(fname):
     f = open(fname, 'rb')
@@ -137,7 +114,7 @@ def process_save_all_graphs(explode):
         # scores, candidates, reference, input doc
         # s, c, r, d = get_path_sample(fnam)
         # heavy duty version
-        if explode:
+        if explode=="True":
             s, c, r, d = get_all_possible_candidates(fnam)
         else:
             s, c, r, d = get_path_sample(fnam)
@@ -154,9 +131,21 @@ def process_save_all_graphs(explode):
         
     return results
 
+def process_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-dataset', type=str)
+    # savename workaround bc of bug
+    parser.add_argument('-savename', type=str)
+    parser.add_argument('-device', type=str, default='cuda:2')
+    parser.add_argument('-exploded', type=str, default="False")
+    parser.add_argument('-path_output', type=str, default="")
+
+    args = parser.parse_args()
+    return args
+
 if __name__ == "__main__":
     args = process_args()
-    BASE = "./custom_output/data"+args.base+"/"
+    BASE = "./custom_output/data/"+args.path_output+"/"
     if BASE =="":
         BASE = "./custom_output/data"+"/mtn1_fr-en_bfs_recom_2_-1_False_0.4_True_False_4_5_zip_-1_0.0_0.9/"
 
@@ -166,11 +155,11 @@ if __name__ == "__main__":
         tokenizer = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
 
     #run_save_graphs()
-    latticecandjson = process_save_all_graphs()
+    latticecandjson = process_save_all_graphs(args.exploded)
     print(latticecandjson[0])
-
+    sname = args.path_output[5:24]
     import json
-    tmpfile = open("./candoutputs/"+args.savename+".jsonl", "w")
+    tmpfile = open("./candoutputs/"+sname+".jsonl", "w")
     for l in latticecandjson:
         tmpfile.write(json.dumps(l))
         tmpfile.write('\n')

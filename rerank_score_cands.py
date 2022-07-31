@@ -18,6 +18,7 @@ def process_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-candfile', type=str, default='beam40en_de')
     parser.add_argument('-device', type=str, default='cuda:2')
+    parser.add_argument('-oracle', type=str, default='no')
 
 
     args = parser.parse_args()
@@ -71,53 +72,108 @@ def test_cometqe(hyp, src):
     torch.cuda.empty_cache()
     return outputs
 
-rercomettmp = []
-firstcomettmp = []
+def get_average_score(cand_data, resco):
+    scoresum = 0
+    scoretot = 0
+    s = "scores"
+    if resco:
+        s = "rescores"
+    for c in cand_data:
+        scoresum+=sum(c[s])
+        scoretot+=len(c[s])
+    return scoresum/scoretot
+
+def amax_score(cand_data):
+    scoresum = 0
+    scoretot = 0
+    for c in cand_data:
+        if len(c['scores'])==0:
+            continue
+        scoresum+=max(c['scores'])
+        scoretot+=1
+    return scoresum/scoretot
+
+def get_average_candlen(cand_data):
+    scoresum = 0
+    scoretot = 0
+    empty = 0
+    for c in cand_data:
+        if len(c['scores'])==0:
+            empty+=1
+            continue
+        scoresum+=len(c['scores'])
+        scoretot+=1
+    print("Are empty :"+str(empty))
+    return scoresum/scoretot
+
 def comet_rerank_info(rrk_info):
-    global rercomettmp
-    global firstcomettmp
+    
     tophyps = []
-    rerhyps = []
+    comhyps = []
+    qehyps = []
     refs = []
     srcs = []
     for r in rrk_info:
         tophyps.append(r['topinitial'])
-        rerhyps.append(r['reranked'])
+        if cheat=='yes' or cheat=='both':
+            comhyps.append(r['comranked'])
+        if cheat=='no' or cheat=='both':
+            qehyps.append(r['qeranked'])
         refs.append(r['ref'])
         srcs.append(r['src'])
-    rerhyps = ['' if pd.isna(item) else item for item in rerhyps] 
+    if cheat=='yes' or cheat=='both':
+        comhyps = ['' if pd.isna(item) else item for item in comhyps] 
+    if cheat=='no' or cheat=='both':
+        qehyps = ['' if pd.isna(item) else item for item in qehyps] 
     tophyps = ['' if pd.isna(item) else item for item in tophyps] 
     srcs = ['' if pd.isna(item) else item for item in srcs] 
     refs = ['' if pd.isna(item) else item for item in refs] 
-    rer_comet_sco = get_comet_scores(rerhyps, srcs, refs)
+    comsco = 0
+    qesco = 0
+    if cheat=='yes' or cheat=='both':
+        comsco = get_comet_scores(comhyps, srcs, refs)
+    if cheat=='no' or cheat=='both':
+        qesco = get_comet_scores(qehyps, srcs, refs)
     first_comet_sco = get_comet_scores(tophyps, srcs, refs)
-    rercomettmp = rer_comet_sco
-    firstcomettmp = first_comet_sco
-    print("reranked comet score")
-    print(rer_comet_sco[1])
-    print("initial top1 comet score")
-    print(first_comet_sco[1])
-    return rer_comet_sco, first_comet_sco
     
-cheat = True
+    result = {}
+    result['oracle'] = comsco
+    result['qererank'] = qesco
+    result['topinitial'] = first_comet_sco
+    print(result)
+    return result
+    
 def get_reranked_cands(c_data):
-    global allscores
+    global comet_path, comet, cometqe_path, model
     reranked_info = []
     allhyps = []
     allsrcs = []
     allrefs = []
     for i in range(0, len(c_data)):
         r, h, s = process_cands(c_data[i])
+        # TODO, should remove empty candidates, but may introduce bugs
+        if len(h)==0:
+            continue
         allhyps.extend(h)
         allsrcs.extend(s)
         allrefs.extend(r)
     allhyps = ['' if pd.isna(item) else item for item in allhyps] 
     allsrcs = ['' if pd.isna(item) else item for item in allsrcs] 
     allrefs = ['' if pd.isna(item) else item for item in allsrcs] 
-    if cheat:
-        allscores = get_comet_scores(allhyps, allsrcs, allrefs)
-    else:
-        allscores = get_cometqe_scores(allhyps, allsrcs)
+    
+    if cheat=='no' or cheat=='both':
+        cometqe_path = download_model(cometqe_model, cometqe_dir)
+        model = load_from_checkpoint(cometqe_path)
+        qescores = get_cometqe_scores(allhyps, allsrcs)
+        del cometqe_path
+        del model
+    if cheat=='yes' or cheat=='both':
+        comet_path = download_model(cometmodel, "./cometmodel")
+        comet = load_from_checkpoint(comet_path)
+        comscores = get_comet_scores(allhyps, allsrcs, allrefs)
+        del comet_path
+        del comet
+        
     start = 0
     for i in range(0, len(c_data)):
         try:
@@ -134,12 +190,19 @@ def get_reranked_cands(c_data):
             #print(scoretmp)
             slen = len(c_data[i]['scores'])
             # TODO I think this is the bug...
-            scoretmp = allscores[0][start:start+slen]
-            start+=slen
-            comind = scoretmp.index(max(scoretmp))
-            tmp['reranked'] = h[comind]
-            tmp['initialsco'] = scoretmp[0]
-            tmp['rersco'] = scoretmp[comind]
+            if cheat=='yes' or cheat=='both':
+                comtmp = comscores[0][start:start+slen]
+                assert len(comtmp)==len(h)
+                start+=slen
+                comind = comtmp.index(max(comtmp))
+                tmp['comranked'] = h[comind]
+            if cheat=='no' or cheat=='both':
+                qetmp = qescores[0][start:start+slen]
+                assert len(qetmp)==len(h)
+                start+=slen
+                qeind = qetmp.index(max(qetmp))
+                tmp['qeranked'] = h[qeind]
+            # TODO double check if htis is needed
             reranked_info.append(tmp)
         except:
             print("bug")
@@ -212,6 +275,7 @@ rescore = False
 if __name__ == "__main__":
     args = process_args()
     args.device = args.device if torch.cuda.is_available() else "cpu"
+    cheat = args.oracle
     if rescore:
         if exists("./candoutputs/"+args.candfile+"rescored.jsonl"):
             cand_data = load_cands("./candoutputs/"+args.candfile+"rescored.jsonl")
@@ -222,28 +286,26 @@ if __name__ == "__main__":
     else:
         cand_data = load_cands("./candoutputs/"+args.candfile+".jsonl")
 
-    if cheat:
-        comet_path = download_model(cometmodel, "./cometmodel")
-        comet = load_from_checkpoint(comet_path)
+    if exists('rerank_outputs/'+args.candfile+'.json'):
+        with open('rerank_outputs/'+args.candfile+'.json') as f:
+            rerank_info = json.load(f)['data']
     else:
-        cometqe_path = download_model(cometqe_model, cometqe_dir)
-        model = load_from_checkpoint(cometqe_path)
+        rerank_info = get_reranked_cands(cand_data)
+        storererank = {}
+        storererank['data'] = rerank_info
+        f = open('rerank_outputs/'+args.candfile+'.json', 'w')
+        json.dump(storererank, f)
+        f.close()
     
-    rerank_info = get_reranked_cands(cand_data)
-    storererank = {}
-    storererank['data'] = rerank_info
-    f = open('latticererank.json', 'w')
-    json.dump(storererank, f)
-    if cheat:
-        del comet_path
-        del comet
-    else:
-
-        del model
-        del cometqe_path
     comet_path = download_model(cometmodel, "./cometmodel")
     comet = load_from_checkpoint(comet_path)
     rrinfo = comet_rerank_info(rerank_info)
     del comet
     del comet_path
+    rrinfo['avglen'] = get_average_candlen(cand_data)
+    rrinfo['avgsco'] = get_average_score(cand_data, False)
+    rrinfo['bestsco'] = amax_score(cand_data)
+    f = open('rerankdata/'+args.candfile+'.json', 'w')
+    json.dump(rrinfo, f)
+    f.close()
         

@@ -1,1 +1,2 @@
-PYTHONPATH=./ python src/recom_search/command/run_pipeline.py -nexample 150  -beam_size 16 -min_len 10 -max_len 60 -model astar_base -adhoc
+# First command, beam size 2, use total scoring
+PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs -dfs_expand -dataset fr-en -beam_size 2 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge zip -device cuda:2 
