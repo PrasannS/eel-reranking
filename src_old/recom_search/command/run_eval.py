@@ -40,7 +40,6 @@ def adjust_batch_size(max_len, task, dataset):
         bs -= 1
     return max(bs,1)
 
-
 def run_recom_bs(args, model, input_doc, dec_prefix, param_sim_function, adjust=True):
     input_ids = tokenizer(
         input_doc, return_tensors="pt").input_ids.to(args.device)
@@ -58,7 +57,6 @@ def run_recom_bs(args, model, input_doc, dec_prefix, param_sim_function, adjust=
     mo = SearchModelOutput(ends=output)
     return mo
 
-
 def run_recom_sample(args, model, input_doc, dec_prefix, param_sim_function) -> SearchModelOutput:
     input_ids = tokenizer(
         input_doc, return_tensors="pt").input_ids.to(args.device)
@@ -71,7 +69,6 @@ def run_recom_sample(args, model, input_doc, dec_prefix, param_sim_function) -> 
 
     mo = SearchModelOutput(ends=output)
     return mo
-
 
 def run_a_star_baseline(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search):
 

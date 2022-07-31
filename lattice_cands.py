@@ -3,24 +3,29 @@ import pickle
 from tabnanny import check
 from unittest import result
 from weakref import finalize
+from matplotlib.cbook import get_sample_data
 import pandas as pd
 import os 
 from src.recom_search.evaluation.analysis import derive_path, viz_result
 from transformers import AutoTokenizer
+import argparse
 
-language = "fr"
-tokenizer = None
-MAX_SUBLEN = 10
+def process_args():
 
-if language=='de':
-    tokenizer = AutoTokenizer.from_pretrained("facebook/mbart-large-50-one-to-many-mmt")
-else:
-    tokenizer = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-dataset', type=str)
+    parser.add_argument('-savename', type=str)
+    parser.add_argument('-device', type=str, default='cuda:2')
+    parser.add_argument('-exploded', type=bool, default=False)
+
+    args = parser.parse_args()
+    return args
+
 
 all_shared_paths = []
 explored = []
 # using for french stuff that worked
-BASE = './output/data/sum_xsum_astar_base_16_60_False_0.4_True_False_4_5_zip_-1_0.0_0.9/'
+BASE = './output_fr_en_1/data/sum_xsum_astar_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9/'
 
 def load_save_data(fname):
     f = open(fname, 'rb')
@@ -159,18 +164,6 @@ def get_reconv_paths(node, afterstr):
         for i in range(0, len(cur.prev)):
             get_reconv_paths(get_node(cur, i), tmp+"")
 
-def get_all_paths(fname):
-    global all_shared_paths
-    global cur_end
-    graph = get_graph(BASE+fname)
-    for i in range(0, len(graph.ends)):
-        cur_end = graph.ends[i]
-        get_reconv_paths(graph.ends[i], "")
-        print(len(all_shared_paths))
-    asp = all_shared_paths
-    all_shared_paths = []
-    return asp
-
 def get_path_sample(fname):
     global all_shared_paths
     global cur_end
@@ -194,36 +187,6 @@ def get_node_str(node):
     s = s.replace("de_DE", "")
     return s.strip()
 
-allplist = []
-cnt = 0
-explod = []
-def extract_all_paths(node, sofar):
-    global allplist
-    global cnt
-    global explod
-    if cnt%100==0:
-        print(cnt)
-    # add to list of paths once at the end
-    if len(node.prev)==0:
-        allplist.append([])
-        allplist[-1].extend(sofar)
-        cnt+=1
-        return
-    # janky workaround to cyclical paths
-    if len(sofar)>75:
-        return
-    
-    for i in range(0, len(node.prev)):
-        p = get_node(node, i)
-        if p in sofar:
-            continue
-        if node.uid+p.uid in explod:
-            continue
-        explod.append(node.uid+p.uid)
-        sofar.append(p)
-        extract_all_paths(p, sofar)
-        sofar.pop()
-
 def get_plist_str(plist):
     toks = [con.token_idx for con in plist]
     toks.reverse()
@@ -238,6 +201,17 @@ def get_plist_sco(plist):
         tot+=p.score
     return tot/len(plist)
 
+def find_paths(root):
+    #print(root.token_str)
+    if len(root.prev) == 0:
+        yield [root]
+
+    for c in range(0, len(root.prev)):
+        child = get_node(root, c)
+        for path in find_paths(child):
+            yield [root] + path
+        
+# TODO, wait, does this just mean that recombination doesn't do anything
 # use candidates from this as a theoretical bound on what lattices can do
 def get_all_possible_candidates(fname):
     graph = get_graph(BASE+fname)
@@ -245,32 +219,30 @@ def get_all_possible_candidates(fname):
     cands = []
     ref = graph.reference
     src = graph.document
+    fullplist = []
     for e in graph.ends:
-        extract_all_paths(e, [e])
-    for plist in allplist:
+        fullplist.extend(list(find_paths(e)))
+    for plist in fullplist:
         scores.append(get_plist_sco(plist))
         cands.append(get_plist_str(plist))
     
     # TODO some kind of filtration that prevents super similar or bad stuff from being used
     return scores, cands, ref, src
 
-osetnums = [63, 68]
-if language=="fr":
-    osetnum = 67
-else:
-    osetnum = 68
+osetnum = 50
+
 def get_ids_and_files():
     paths = os.listdir(BASE)
     result = {}
     for p in paths:
         tmpid = ""
         tmpid = p[osetnum:]
-        tmpid = tmpid.split("_")[0]
+        #tmpid = tmpid.split("_")[0]
         result[tmpid] = p
+    assert len(paths) == len(result.keys())
     return result
 
-
-def process_save_all_graphs():
+def process_save_all_graphs(explode):
     filedict = get_ids_and_files()
     results = []
     for f in filedict.keys():
@@ -278,7 +250,10 @@ def process_save_all_graphs():
         # scores, candidates, reference, input doc
         # s, c, r, d = get_path_sample(fnam)
         # heavy duty version
-        s, c, r, d = get_path_sample(fnam)
+        if explode:
+            s, c, r, d = get_all_possible_candidates(fnam)
+        else:
+            s, c, r, d = get_path_sample(fnam)
         cand_sorted = [i for _,i in sorted(zip(s,c))]
         sco_sorted = sorted(s)
         cand_sorted.reverse()
@@ -292,14 +267,21 @@ def process_save_all_graphs():
         
     return results
 
-#run_save_graphs()
-latticecandjson = process_save_all_graphs()
-print(latticecandjson[0])
+if __name__ == "__main__":
+    args = process_args()
 
-import json
-tmpfile = open("./candoutputs/latfren60"+".jsonl", "w")
-for l in latticecandjson:
-    tmpfile.write(json.dumps(l))
-    tmpfile.write('\n')
-tmpfile.close()
+    if args.dataset=='en_de':
+        tokenizer = AutoTokenizer.from_pretrained("facebook/mbart-large-50-one-to-many-mmt")
+    else:
+        tokenizer = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
 
+    #run_save_graphs()
+    latticecandjson = process_save_all_graphs()
+    print(latticecandjson[0])
+
+    import json
+    tmpfile = open("./candoutputs/"+args.savename+".jsonl", "w")
+    for l in latticecandjson:
+        tmpfile.write(json.dumps(l))
+        tmpfile.write('\n')
+    tmpfile.close()
