@@ -17,7 +17,7 @@ def process_args():
     parser.add_argument('-savename', type=str)
     parser.add_argument('-device', type=str, default='cuda:2')
     parser.add_argument('-exploded', type=bool, default=False)
-
+    parser.add_argument('-base', type=str, default="")
     args = parser.parse_args()
     return args
 
@@ -25,7 +25,6 @@ def process_args():
 all_shared_paths = []
 explored = []
 # using for french stuff that worked
-BASE = './output_fr_en_1/data/sum_xsum_astar_16_35_False_0.4_True_False_4_5_zip_0.75_0.0_0.9/'
 
 def load_save_data(fname):
     f = open(fname, 'rb')
@@ -35,77 +34,9 @@ def load_save_data(fname):
 def get_graph(fname):
     f = open(fname, 'rb')
     return pickle.load(f)
-#load_open_data('./output_v1/data/sum_xsum_astar_16_15_False_0.4_True_False_4_5_zip_0.75_0.0_0.9/sum_xsum_astar_16_15_False_0.4_True_False_4_5_zip_0.75_0.0_0.9_28360838_The-law-al.pkl')
-# method, returns backwards list with most likely path to a given node
-def get_top1_path(node):
-    node_list = []
-    node_list.append(node)
-    cur = node
-    while len(cur.prev) > 0:
-        cur = cur.hash.retrieve_node(cur.prev[0])
-        node_list.append(cur)
-        #print(cur.token_str)
-    return node_list
-
-cur_end = None
-
-def get_after(end, node):
-    end = node.hash.retrieve_node(end)
-    afterlist = []
-    get_after_helper(afterlist, end, node)
-    return afterlist
-
-def get_after_helper(alist, cur, target):
-    if cur.uid==target.uid:
-        return True
-    for p in cur.prev:
-        tmp = cur.hash.retrieve_node(p)
-        alist.append(tmp)
-        if get_after_helper(alist, tmp, target):
-            return True
-        alist.pop()
-    return False
-    
-# get list from end to start of top uids of a given path going back to start
-def get_top1_uids(node):
-    node_list = []
-    node_list.append(node.uid)
-    cur = node
-    while len(cur.prev) > 0:
-        cur = cur.hash.retrieve_node(cur.prev[0])
-        node_list.append(cur.uid)
-        #print(cur.token_str)
-    return node_list
-
-# check if 2 nodes started from the same path within the last 10 top nodes, if so, 
-# return an object with a list of the sub-paths to compare
-def check_reconv(n1, n2):
-    l1 = get_top1_uids(n1)
-    l2 = get_top1_uids(n2)
-    ind1 = -1
-    ind2 = -1
-    for i in range(0, MAX_SUBLEN):
-        if l1[i] in l2:
-            ind1 = i
-            ind2 = l2.index(l1[i])
-            break
-    # edge case of 0
-    if ind1>0:
-        sharedpath = {}
-        # todo make a more efficient top_path method
-        sharedpath['p1'] = get_top1_path(n1)[:ind1]
-        sharedpath['p2'] = get_top1_path(n2)[:ind2]
-        return sharedpath
-    return None
 
 def get_node (node, ind):
     return node.hash.retrieve_node(node.prev[ind])
-
-def pathlist_str(pathl):
-    s = ""
-    for p in pathl:
-        s = p.token_str+" "+s
-    return s
     
 # get up to n words that come before sequence
 def get_context(n, pl):
@@ -116,53 +47,9 @@ def get_context(n, pl):
         node = get_node(node, 0)
         contlist.append(node)
         i+=1
+    assert len(node.prev)==0
     return contlist
-
-def clean_path (path):
-    i = 0
-    while i<len(path)-1:
-        if path[i].token_str==path[i+1].token_str:
-            del path[i]
-        else:
-            i+=1
-    return path
             
-
-# might need to be recursive, generate global list of reconverging paths
-def get_reconv_paths(node, afterstr):
-    global all_shared_paths
-    global explored
-    if node.uid in explored:
-        return
-    explored.append(node.uid)
-    cur = node
-    is_split = False
-    tmp = afterstr
-    while len(cur.prev) > 0:
-        tmp = cur.token_str+tmp
-        if len(cur.prev) > 1:
-            # check combinations and paths of split nodes
-            for i in range(0, len(cur.prev)):
-                for j in range(0, i):
-                    if i == j:
-                        continue
-                    path = check_reconv(get_node(cur, i), get_node(cur, j))
-                    if path != None:
-                        #path['p1'] = clean_path(path['p1'])
-                        #path['p2'] = clean_path(path['p2'])
-                        path['s1'] = pathlist_str(path['p1'])
-                        path['s2'] = pathlist_str(path['p2'])
-                        path['afterstr'] = tmp+""
-                        all_shared_paths.append(path)
-            is_split = True
-            break
-        else:
-            explored.append(node.uid)
-            cur = get_node(cur, 0)
-    if is_split:
-        # might lead to repeats, but recursively push method to future nodes
-        for i in range(0, len(cur.prev)):
-            get_reconv_paths(get_node(cur, i), tmp+"")
 
 def get_path_sample(fname):
     global all_shared_paths
@@ -178,7 +65,7 @@ def get_path_sample(fname):
     return scores, cands, ref, src
 
 def get_node_str(node):
-    c = get_context(50, [node])
+    c = get_context(200, [node])
     toks = [con.token_idx for con in c]
     toks.reverse()
     toks.append(node.token_idx)
@@ -269,6 +156,9 @@ def process_save_all_graphs(explode):
 
 if __name__ == "__main__":
     args = process_args()
+    BASE = "./custom_output/data"+args.base+"/"
+    if BASE =="":
+        BASE = "./custom_output/data"+"/mtn1_fr-en_bfs_recom_2_-1_False_0.4_True_False_4_5_zip_-1_0.0_0.9/"
 
     if args.dataset=='en_de':
         tokenizer = AutoTokenizer.from_pretrained("facebook/mbart-large-50-one-to-many-mmt")
