@@ -151,7 +151,7 @@ def main(directory, folder, device='cuda:0') -> int:
 
 
 if __name__ == '__main__':
-    directory = '/mnt/data1/jcxu/lattice-sum/output/data/'
+    directory = '/mnt/data1//prasann/latticegen/lattice-generation/output/data/'
     folders = os.listdir(directory)
     folders = [f for f in folders if 'sum_xsum_astar' in f]
     for d in folders:

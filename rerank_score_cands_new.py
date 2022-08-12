@@ -9,6 +9,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 # cache dir for cometqe model
 cometqe_dir = "./cometqemodel"
+# can alternatively use wmt21-comet-qe-mqm
 cometqe_model = "wmt20-comet-qe-da"
 cometmodel = "wmt20-comet-da"
 batch_size = 64
@@ -39,9 +40,7 @@ def load_cands(fname):
     return data
 
 def process_cands(cand_data):
-    refs = []
-    hyps = []
-    srcs = []
+    
     clen = len(cand_data['scores'])
     # return refs, hyps, srcs
     return [cand_data['ref']]*clen, cand_data['cands'], [cand_data['inp']]*clen
@@ -50,7 +49,7 @@ def get_cometqe_scores(hyps, srcs):
     cometqe_input = [{"src": src, "mt": mt} for src, mt in zip(srcs, hyps)]
     # sentence-level and corpus-level COMET
     outputs = model.predict(
-        cometqe_input, batch_size=40, progress_bar=True
+        cometqe_input, batch_size=64, progress_bar=True
     )
     torch.cuda.empty_cache()
     return outputs
@@ -59,7 +58,7 @@ def get_comet_scores(hyps, srcs, refs):
     cometqe_input = [{"src": src, "mt": mt, "ref":ref} for src, mt, ref in zip(srcs, hyps, refs)]
     # sentence-level and corpus-level COMET
     outputs = comet.predict(
-        cometqe_input, batch_size=40, progress_bar=True
+        cometqe_input, batch_size=64, progress_bar=True
     )
     torch.cuda.empty_cache()
     return outputs
@@ -137,10 +136,16 @@ def comet_rerank_info(rrk_info):
     first_comet_sco = get_comet_scores(tophyps, srcs, refs)
     
     result = {}
+    print("oracle")
+    print(comsco[1])
+    print("cometqe")
+    print(qesco[1])
+    print("top1")
+    print(first_comet_sco[1])
     result['oracle'] = comsco
     result['qererank'] = qesco
     result['topinitial'] = first_comet_sco
-    print(result)
+    #print(result)
     return result
     
 def get_reranked_cands(c_data):
@@ -152,14 +157,14 @@ def get_reranked_cands(c_data):
     for i in range(0, len(c_data)):
         r, h, s = process_cands(c_data[i])
         # TODO, should remove empty candidates, but may introduce bugs
-        if len(h)==0:
-            continue
+        #if len(h)==0:
+        #    continue
         allhyps.extend(h)
         allsrcs.extend(s)
         allrefs.extend(r)
     allhyps = ['' if pd.isna(item) else item for item in allhyps] 
     allsrcs = ['' if pd.isna(item) else item for item in allsrcs] 
-    allrefs = ['' if pd.isna(item) else item for item in allsrcs] 
+    allrefs = ['' if pd.isna(item) else item for item in allrefs] 
     
     if cheat=='no' or cheat=='both':
         cometqe_path = download_model(cometqe_model, cometqe_dir)
@@ -173,7 +178,8 @@ def get_reranked_cands(c_data):
         comscores = get_comet_scores(allhyps, allsrcs, allrefs)
         del comet_path
         del comet
-        
+    
+    assert len(qescores)==len(comscores)
     start = 0
     for i in range(0, len(c_data)):
         try:
@@ -183,9 +189,12 @@ def get_reranked_cands(c_data):
             tmp['src'] = s[0]
             # used rescored best
             if rescore:
-                tmp['topinitial'] = h[c_data[i]['sco_ranks'].index(0)]
+                # this is a loss, so lower is better?
+                tmp['topinitial'] = h[c_data[i]['sco_ranks'][0]]
             else:
                 tmp['topinitial'] = h[0]
+            tmp['cands'] = h
+            tmp['modelscores'] = c_data[i]['scores']
             #scoretmp = get_cometqe_scores(h, s)[0]
             #print(scoretmp)
             slen = len(c_data[i]['scores'])
@@ -193,15 +202,19 @@ def get_reranked_cands(c_data):
             if cheat=='yes' or cheat=='both':
                 comtmp = comscores[0][start:start+slen]
                 assert len(comtmp)==len(h)
-                start+=slen
+                assert isinstance(comtmp, list)
+                assert isinstance(comtmp[0], float)
                 comind = comtmp.index(max(comtmp))
                 tmp['comranked'] = h[comind]
+                tmp['cometscores'] = comtmp
             if cheat=='no' or cheat=='both':
                 qetmp = qescores[0][start:start+slen]
                 assert len(qetmp)==len(h)
-                start+=slen
+                
                 qeind = qetmp.index(max(qetmp))
                 tmp['qeranked'] = h[qeind]
+                tmp['qescores'] = qetmp
+            start+=slen
             # TODO double check if htis is needed
             reranked_info.append(tmp)
         except:
@@ -212,12 +225,10 @@ def get_mbart_nll(cand, ind, tok, mod, dev):
 
     inp = cand['inp']
     out = cand['cands'][ind]
-    
 
     inputs = tok(inp, return_tensors="pt").to(dev)
     with tok.as_target_tokenizer():
         labels = tok(out, return_tensors="pt").to(dev)
-
 
     # forward pass
     output = mod(**inputs, labels=labels.input_ids)
@@ -229,7 +240,6 @@ setup = "de"
 def rescore_cands(c_list):
     device = "cuda:2" if torch.cuda.is_available() else "cpu"
     if setup == "de":
-    
         mname = "facebook/mbart-large-50-one-to-many-mmt"
         src_l = "en_XX"
         tgt_l = "de_DE"

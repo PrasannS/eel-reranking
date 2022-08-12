@@ -276,7 +276,16 @@ dmypy.json
 /qaware-decode
 /cometqemodel
 /cometmodel
+/mbartqemodel
 /translation_data
+/reverse_graphs
+/vizs
+/custom_output
+/custom_input
+/.vscode
+/logs
+/candoutputs
+/oldoutputs
 .html
 .txt
 *.csv

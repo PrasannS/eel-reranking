@@ -6,13 +6,14 @@ import json
 import argparse
 import mt_data
 import pandas as pd
+import time
 
 def process_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-method', type=str)
     parser.add_argument('-device', type=str, default='cuda:2')
-    parser.add_argument('-dataset', default='en_de', type=str)
+    parser.add_argument('-dataset', default='fr_en', type=str)
     parser.add_argument('-top_p', type=float, default=0.6)
     parser.add_argument('-num_examples', type=int, default=800)
     parser.add_argument('-max_len', type=int, default=35)
@@ -35,7 +36,10 @@ def load_model(args):
     return tokenizer, model
 
 def beam_generate(model_inputs, tokenizer, model, per_example, batch, lcode, args):
-    return model.generate(
+    
+    starttime = time.time()
+
+    gen = model.generate(
         **model_inputs,
         forced_bos_token_id=tokenizer.lang_code_to_id[lcode],
         num_beams=per_example,
@@ -44,6 +48,9 @@ def beam_generate(model_inputs, tokenizer, model, per_example, batch, lcode, arg
         return_dict_in_generate=True,
         output_scores=True,
     )
+    totaltime = round((time.time() - starttime), 2)
+    print("Total Time: "+str(totaltime))
+    return gen
 
 def nucleus_generate(model_inputs, tokenizer, model, per_example, batch, lcode, args):
     return model.generate(
@@ -148,7 +155,7 @@ if __name__ == "__main__":
     if args.num_hyps>10:
         bsize = 4
     if args.num_hyps>30:
-        bsize = 1
+        bsize = 2
         
     # function, inputs, refs, tokenizer, model, per_example=10, batch=8
     candidates = get_generate_candidates(gmethod, inp, ref, tokenizer, model, args.num_hyps, bsize)

@@ -8,7 +8,7 @@ from src.recom_search.evaluation.eval_bench import rouge_single_pair
 
 
 from src.recom_search.model.model_output import SearchModelOutput
-name_dir = '/mnt/data1/jcxu/lattice-sum/output/data/sum_xsum_bs_16_35_False_0.4_False_False_4_5_zip_-1_0.0_0.9'
+name_dir = '/mnt/data1//prasann/latticegen/lattice-generation/output/data/sum_xsum_bs_16_35_False_0.4_False_False_4_5_zip_-1_0.0_0.9'
 # name_dir = '/mnt/data1/jcxu/lattice-sum/output/data/sum_xsum_bs_64_35_False_0.4_False_False_4_5_zip_-1_0.0_0.9'
 files = os.listdir(name_dir)
 all_dps = []

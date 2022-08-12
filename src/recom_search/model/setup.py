@@ -24,7 +24,7 @@ def render_address(root = 'output') ->dict:
     }
     return d
 
-def read_mt_data(path='/mnt/data1/jcxu/lattice-sum/mt-data/use', name='zh-en'):
+def read_mt_data(path='/mnt/data1/prasann/latticegen/lattice-generation/mt-data/use', name='en-de'):
     src = name[:2]
     tgt = name[3:]
     with open(os.path.join(path, f"{name}.{src}"), 'r') as fd:
@@ -137,6 +137,8 @@ def setup_logger(name):
 
 def process_arg():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-exploded', type=str, default="False")
+
     parser.add_argument('-device', type=str, default='cuda:2', help='name of device, eg. cuda:0 or cpu')
     parser.add_argument("-model", type=str, choices=[
                         'dbs', 'bs', 'greedy', 'topp', 'temp', 'bs_recom', 'sample_recom', 'bfs','bfs_recom'], default='bs')

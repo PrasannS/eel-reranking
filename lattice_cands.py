@@ -42,13 +42,14 @@ def get_path_sample(fname):
     return scores, cands, ref, src
 
 def get_node_str(node):
-    c = get_context(200, [node])
+    c = get_context(300, [node])
     toks = [con.token_idx for con in c]
     toks.reverse()
     toks.append(node.token_idx)
     s = tokenizer.batch_decode([toks])[0]
     s = s.replace("</s>", "")
     s = s.replace("de_DE", "")
+    s = s.replace("en_XX", "")
     return s.strip()
 
 def get_plist_str(plist):
@@ -57,6 +58,7 @@ def get_plist_str(plist):
     s = tokenizer.batch_decode([toks])[0]
     s = s.replace("</s>", "")
     s = s.replace("de_DE", "")
+    s = s.replace("en_XX", "")
     return s.strip()
 
 def get_plist_sco(plist):
@@ -65,19 +67,57 @@ def get_plist_sco(plist):
         tot+=p.score
     return tot/len(plist)
 
-def find_paths(root):
+def find_paths(root, graph):
+    global nodeset
     #print(root.token_str)
     if len(root.prev) == 0:
         yield [root]
 
+    seen = []
     for c in range(0, len(root.prev)):
         child = get_node(root, c)
-        for path in find_paths(child):
+        if child.uid in seen:
+            continue
+        nodeset.add(child.uid)
+        #if len(seen)>1:
+            #print("maybe not bug")
+        seen.append(child.uid)
+        for path in find_paths(child, graph):
             yield [root] + path
-        
+
+def get_uid_str(plist):
+    res = ""
+    for p in plist:
+        res+=str(p.uid)
+    return res
+
+def plist_equal(l1, l2):
+    return get_uid_str(l1)==get_uid_str(l2)
+
+def remove_dups(allplists):
+    if len(allplists) ==0:
+        return []
+    uidlist = []
+    res = []
+    for plist in allplists:
+        uidlist.append(get_uid_str(plist))
+    i = 0
+    while(i<len(allplists)-1):
+        if uidlist[i] in uidlist[i+1:]:
+            continue
+        else:
+            res.append(allplists[i])
+        i+=1
+    res.append(allplists[-1])
+    return res
+    
+STOP = 100    
+nodeset = set()
+
 # TODO, wait, does this just mean that recombination doesn't do anything
 # use candidates from this as a theoretical bound on what lattices can do
 def get_all_possible_candidates(fname):
+    global nodeset
     graph = get_graph(BASE+fname)
     scores =  []
     cands = []
@@ -85,7 +125,20 @@ def get_all_possible_candidates(fname):
     src = graph.document
     fullplist = []
     for e in graph.ends:
-        fullplist.extend(list(find_paths(e)))
+        generated = 0
+        for p in find_paths(e, graph):
+            if generated == STOP:
+                break
+            fullplist.append(p)
+            generated+=1
+    print("num nodes")
+    print(len(nodeset))
+    nodeset = set()
+    fullplist = remove_dups(fullplist)
+    print("candidates")
+    print(len(fullplist))
+    print("ends")
+    print(len(graph.ends))
     for plist in fullplist:
         scores.append(get_plist_sco(plist))
         cands.append(get_plist_str(plist))
@@ -134,11 +187,10 @@ def process_save_all_graphs(explode):
 def process_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-dataset', type=str)
-    # savename workaround bc of bug
-    parser.add_argument('-savename', type=str)
+    
     parser.add_argument('-device', type=str, default='cuda:2')
     parser.add_argument('-exploded', type=str, default="False")
-    parser.add_argument('-path_output', type=str, default="")
+    parser.add_argument('-path_output', type=str, default="mtn1_fr-en_bfs_recom_2_-1_False_0.4_True_False_4_5_zip_-1_0.0_0.9")
 
     args = parser.parse_args()
     return args
@@ -157,9 +209,12 @@ if __name__ == "__main__":
     #run_save_graphs()
     latticecandjson = process_save_all_graphs(args.exploded)
     print(latticecandjson[0])
-    sname = args.path_output[5:24]
+    sname = args.path_output
     import json
-    tmpfile = open("./candoutputs/"+sname+".jsonl", "w")
+    name = "./candoutputs/"+sname+".jsonl"
+    if args.exploded=="True":
+        name = "./candoutputs/exploded"+sname+".jsonl"
+    tmpfile = open(name, "w")
     for l in latticecandjson:
         tmpfile.write(json.dumps(l))
         tmpfile.write('\n')
