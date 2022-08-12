@@ -9,4 +9,5 @@ class ReverseNode():
         self.nextlist = []
         self.next_scores = []
         self.next_ids = []
+        self.pos = -1
 
