@@ -286,6 +286,7 @@ dmypy.json
 /logs
 /candoutputs
 /oldoutputs
+/posbert
 .html
 .txt
 *.csv
