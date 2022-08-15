@@ -20,7 +20,10 @@ from src.recom_search.model.util import pnum, render_name, run_inference_step
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 
+subchecks = 0
+
 def step_bfs_rcb_any(tokenizer, start_seed: BeamNodeFull, hash: HashObject, heap, doc_input_ids, model, param_sim_function, use_heuristic: bool, avg_score, max_len: int, expl_steps: int, k_best: int, heu_func: DeployHeu=None) -> Tuple[Any, int]:
+    global subchecks
     finished_hypos = []
     step = 0
     ngram_suffix = param_sim_function['ngram_suffix']
@@ -49,8 +52,21 @@ def step_bfs_rcb_any(tokenizer, start_seed: BeamNodeFull, hash: HashObject, heap
                               prob=values[0], 
                               token_idx=indices[0], 
                               prev=[pointer.uid], prev_score=[math.log(values[0])])
-
-        if cur_len >= hash.ngram:
+        # this is where n-gram matching takes place
+        stmp = tokenizer.decode([cur_dec_input_ids[-1]]+[top1_state.token_idx])
+        subcheck = " " in stmp
+        """
+        if subchecks<10 and subcheck:
+            print("SUB TRUE - ", stmp)
+            subcheck+=1
+        elif subchecks<20:
+            print("SUB FALSE - ", stmp)
+            subcheck+=1
+        """
+            
+        # TODO this is where I could add a check for merging that makes sure that I'm 
+        # on a word boundary 
+        if cur_len >= hash.ngram and subcheck:
             retrieved = hash.query(cur_dec_input_ids + [top1_state.token_idx])
             ngram = (cur_dec_input_ids +
                      [top1_state.token_idx])[-ngram_suffix:]
@@ -92,9 +108,12 @@ def step_bfs_rcb_any(tokenizer, start_seed: BeamNodeFull, hash: HashObject, heap
         if top1_state.finished or top1_state.length >= max_len:
             finished_hypos.append(top1_state)
 
-
+        
         # add future candidate to heap
         for v, i in zip(values, indices):
+            # TODO verify, only add future candidates that are on a word boundary
+            if subcheck==False and i>0:
+                continue
             # remove cases like _XX, and XX if one of them already exist
             tok_txt = tokenizer.decode(i).strip().lower()
             if tok_txt in seen_tokens:
@@ -143,14 +162,18 @@ def bfs_rcb_any(model, tokenizer,
     r"""
     """
 
+    # tracks number of model decoding calls
     ncalls = 0
+    # TODO understand this
     heu_func = DeployHeu(config_heu)
+    # this'll be used to track n-gram matching?
     core_hash_obj = HashObject(param_sim_function['ngram_suffix'])
     heap = []  # nodes at the frontier of search
     finished_hypos = []
     # config_search.in: each time we expand a node, we always extend to end
     # config_search.post: after exploration, we try to extend all of the non-finished nodes until reach the budget
     assert not (config_search['post'] and config_search['dfs_expand'])
+    
     if config_search['post']:
         budget_expl = comp_budget - \
             int(config_search['post_ratio'] * comp_budget)

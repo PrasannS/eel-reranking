@@ -73,6 +73,7 @@ class BeamNode(ABC):
         tokens = self.all_token_idx
         dec_prefix = torch.tensor([tokens], dtype=torch.long)
         return dec_prefix
+        
     def get_score_sum(self):
         all_score = self.all_score
         return sum(all_score)
