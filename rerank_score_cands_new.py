@@ -49,7 +49,7 @@ def get_cometqe_scores(hyps, srcs):
     cometqe_input = [{"src": src, "mt": mt} for src, mt in zip(srcs, hyps)]
     # sentence-level and corpus-level COMET
     outputs = model.predict(
-        cometqe_input, batch_size=64, progress_bar=True
+        cometqe_input, batch_size=32, progress_bar=True
     )
     torch.cuda.empty_cache()
     return outputs
@@ -58,7 +58,7 @@ def get_comet_scores(hyps, srcs, refs):
     cometqe_input = [{"src": src, "mt": mt, "ref":ref} for src, mt, ref in zip(srcs, hyps, refs)]
     # sentence-level and corpus-level COMET
     outputs = comet.predict(
-        cometqe_input, batch_size=64, progress_bar=True
+        cometqe_input, batch_size=32, progress_bar=True
     )
     torch.cuda.empty_cache()
     return outputs

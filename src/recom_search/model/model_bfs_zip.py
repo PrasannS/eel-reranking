@@ -108,11 +108,17 @@ def step_bfs_rcb_any(tokenizer, start_seed: BeamNodeFull, hash: HashObject, heap
         if top1_state.finished or top1_state.length >= max_len:
             finished_hypos.append(top1_state)
 
-        
+        cnt = 0
         # add future candidate to heap
         for v, i in zip(values, indices):
             # TODO verify, only add future candidates that are on a word boundary
-            if subcheck==False and i>0:
+            if subcheck==False and cnt>0:
+                continue
+            cnt+=1
+            # TODO assuming we're passing
+            sstmp = tokenizer.decode([cur_dec_input_ids[-1]]+[i])
+            sscheck = " " in sstmp
+            if subcheck and sscheck==False:
                 continue
             # remove cases like _XX, and XX if one of them already exist
             tok_txt = tokenizer.decode(i).strip().lower()

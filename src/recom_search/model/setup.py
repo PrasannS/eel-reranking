@@ -8,6 +8,7 @@ from transformers import BartTokenizer, BartForConditionalGeneration
 from transformers import AutoConfig, AutoModelForSeq2SeqLM,AutoTokenizer
 import os
 import random
+import mt_data
 
 random.seed(2021)
 
@@ -25,6 +26,17 @@ def render_address(root = 'output') ->dict:
     return d
 
 def read_mt_data(path='/mnt/data1/prasann/latticegen/lattice-generation/mt-data/use', name='en-de'):
+    if 'fr' in name:
+        datadf = mt_data.load_generate_set(100, "fr_en")
+        slines = list(datadf['fr'])
+        tlines = list(datadf['en'])
+        assert len(slines)==len(tlines)
+        assert "" not in slines
+        assert "" not in tlines
+        assert None not in slines
+        assert None not in tlines
+        print("USING COMPARABLE DATA")
+        return zip(slines, tlines)
     src = name[:2]
     tgt = name[3:]
     with open(os.path.join(path, f"{name}.{src}"), 'r') as fd:
@@ -34,6 +46,7 @@ def read_mt_data(path='/mnt/data1/prasann/latticegen/lattice-generation/mt-data/
     print(slines[:5])
     print(tlines[:5])
     assert len(slines) == len(tlines)
+
     return zip(slines, tlines)
 
 
