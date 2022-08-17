@@ -34,7 +34,6 @@ def proc_cands(cand_data):
     # return refs, hyps, srcs
     return [cand_data['ref']]*clen, cand_data['cands'], [cand_data['src']]*clen
 
-
 def convert_wmt ():
     #TODO there's definetely a way to clean this up
     with open("translation_data/news-commentary-v15.de-en.tsv") as file:
