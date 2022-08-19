@@ -287,6 +287,8 @@ dmypy.json
 /candoutputs
 /oldoutputs
 /posbert
+latposlabels.pt
+latposlabelsdone.pt
 .html
 .txt
 *.csv

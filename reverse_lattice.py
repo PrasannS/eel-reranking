@@ -77,9 +77,6 @@ def reverse_save_graphs(path_output):
         print(len(restmp.keys())-2)
         print(TGT+pat)
 
-    
-
-
 if __name__ == "__main__":
     # TODO set up logic to retrieve graph given filename
     # reverse_save_graphs("mtn1_fr-en_bfs_recom_1_-1_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9")
