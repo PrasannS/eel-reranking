@@ -53,7 +53,7 @@ def read_mt_data(path='/mnt/data1/prasann/latticegen/lattice-generation/mt-data/
 # MODEL_CACHE = '/mnt/data1/jcxu/cache'
 
 
-def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cuda:2'):
+def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cuda:0'):
     device = torch.device(device_name)
     print(model_name)
     config = AutoConfig.from_pretrained(model_name)
@@ -152,7 +152,7 @@ def process_arg():
     parser = argparse.ArgumentParser()
     parser.add_argument('-exploded', type=str, default="False")
 
-    parser.add_argument('-device', type=str, default='cuda:2', help='name of device, eg. cuda:0 or cpu')
+    parser.add_argument('-device', type=str, default='cuda:0', help='name of device, eg. cuda:0 or cpu')
     parser.add_argument("-model", type=str, choices=[
                         'dbs', 'bs', 'greedy', 'topp', 'temp', 'bs_recom', 'sample_recom', 'bfs','bfs_recom'], default='bs')
     parser.add_argument('-beam_size', type=int, default=15)

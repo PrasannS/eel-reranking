@@ -41,7 +41,7 @@ splits_hit = 0
 def greedy_flatten(tdicts, visited, node, pos, prev_cont, added_ids):
     global splits_hit
     if node.uid in visited:
-        print("cycle here")
+        #print("cycle here")
         return
     if node.token_idx==2 or node.token_idx==250004:
         npos = pos
@@ -80,8 +80,9 @@ def greedy_flatten(tdicts, visited, node, pos, prev_cont, added_ids):
                         break
                 decstr = mbart_tok.decode(toktmp)
                 if errorflag:
-                    print(decstr)
-                    print([p.pos for p in prev_update])
+                    #print(decstr)
+                    #print([p.pos for p in prev_update])
+                    ""
                 bert_toks = bert_tok(decstr).input_ids
                 curpos = prev_update[0].pos
                 # TODO add logic that tracks scores
@@ -116,7 +117,7 @@ def get_processed_graph_data(lanbase, stop=-1, msplits=-1):
     max_splits = msplits
     base = GBASE+lanbase
     paths = os.listdir(base)
-    print(len(paths))
+    #print(len(paths))
     result = []
     if stop==-1:
         stop = len(paths)
@@ -183,12 +184,12 @@ def get_all_possible_candidates(graph):
             break
         fullplist.append(p)
         generated+=1
-    print("num nodes")
-    print(len(nodeset))
+    #print("num nodes")
+    #print(len(nodeset))
     nodeset = set()
     #fullplist = remove_dups(fullplist)
-    print("candidates")
-    print(len(fullplist))
+    #print("candidates")
+    #print(len(fullplist))
     for plist in fullplist:
         #scores.append(get_plist_sco(plist))
         cands.append(get_plist_str(plist))
@@ -199,7 +200,7 @@ def get_all_possible_candidates(graph):
 def get_allcands(lanbase, stop=-1, res=[]):
     base = GBASE+lanbase
     paths = os.listdir(base)
-    print(len(paths))
+    #print(len(paths))
     if stop==-1:
         stop = len(paths)
     for i in range(0, stop):
@@ -207,7 +208,7 @@ def get_allcands(lanbase, stop=-1, res=[]):
             curgraph = load_graph(base+paths[i])
             res.append(get_all_possible_candidates(curgraph))
         except:
-            print("hit recursion limit")
+            #print("hit recursion limit")
             res.append([])
     return res
         #result.append(flatten_lattice(curgraph))
@@ -218,9 +219,9 @@ def check_encsame(flat):
     tlist = get_toklist(flat)
     decstr = mbart_tok.decode(get_toklist(flat))
     re_encoded = mbart_tok(decstr).input_ids
-    print(decstr)
+    #print(decstr)
     for i in range(0, len(tlist)):
-        print(mbart_tok.decode(tlist[i]), " ", mbart_tok.decode(re_encoded[i+1]))
+        #print(mbart_tok.decode(tlist[i]), " ", mbart_tok.decode(re_encoded[i+1]))
         if tlist[i]==re_encoded[i+1]:
             continue
         #print(tlist[i])

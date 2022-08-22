@@ -289,6 +289,9 @@ dmypy.json
 /posbert
 latposlabels.pt
 latposlabelsdone.pt
+tmapsdone.pickle
+tmaps.pkl
+latreposlabels.pt
 .html
 .txt
 *.csv

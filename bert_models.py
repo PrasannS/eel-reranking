@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import AutoModel
 # lattice encoding and normal candidate encoding
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 class LinearLatticeBert(nn.Module):
     def __init__(self, num_labels):
         super().__init__()

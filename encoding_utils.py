@@ -3,7 +3,7 @@ from scipy.spatial.distance import cosine
 from more_itertools import locate
 from flatten_lattice import bert_tok
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 MAX_LEN = 500
 
@@ -61,7 +61,7 @@ def makelattice_pos_data(tokmap, flat):
     for tok in flat:
         # this should always work given how the lattice is structured
         try:
-            res.append(tokmap[str(int(tok))])
+            res.append(tokmap[str(int(tok))].to(device))
         except:
             print("missing token")
             res.append(torch.zeros(52).to(device))
@@ -69,9 +69,19 @@ def makelattice_pos_data(tokmap, flat):
 
 def lattice_pos_goldlabels(datax, datay, sents):
     dataset = []
+    tmaps = []
     for i in range(len(datax)):
         tmap = dataset_make_tags(datax[i], datay[i])
         dataset.append(makelattice_pos_data(tmap, sents[i]))
+        tmaps.append(tmap)
+        print(i)
+    return torch.stack(dataset).float().to(device), tmaps
+
+def tmap_pos_goldlabels(tmaps, sents):
+    dataset = []
+    assert len(tmaps)==len(sents)
+    for i in range(len(tmaps)):
+        dataset.append(makelattice_pos_data(tmaps[i], sents[i]))
         print(i)
     return torch.stack(dataset).float().to(device)
 
