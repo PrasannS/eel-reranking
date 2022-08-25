@@ -34,11 +34,16 @@ def flatten_lattice(graph):
     #greedy_flat_old(tokdicts, visited, graph['root'], 0)
     return tokdicts
     
+def find_tdict_node(tdictions, idval):
+    for t in tdictions:
+        if t['id']==idval:
+            return t
+
 max_splits = -1
 splits_hit = 0
 # flattens graph by position, ignores </s> and en_XX tokens for greater BERT compatibility
 # TODO set up to use mbart tokenization
-def greedy_flatten(tdicts, visited, node, pos, prev_cont, added_ids):
+def greedy_flatten(tdicts, visited, node, pos, prev_cont, added_ids, branch_start=None):
     global splits_hit
     if node.uid in visited:
         #print("cycle here")
@@ -85,14 +90,33 @@ def greedy_flatten(tdicts, visited, node, pos, prev_cont, added_ids):
                     ""
                 bert_toks = bert_tok(decstr).input_ids
                 curpos = prev_update[0].pos
-                # TODO add logic that tracks scores
-                for b in bert_toks:
+                # TODO add logic that tracks scores / next nodes
+                otdlen = len(tdicts)
+                for bind in range(0, len(bert_toks)):
+                    b = bert_toks[bind]
                     if b==101 or b==102:
                         continue
-                    tdicts.append({
-                        'token_idx':b,
-                        'pos':curpos
-                    })
+                    nid = str(b)+" "+str(curpos)
+                    # if we're at the start, add this node to next of branch node
+                    if len(tdicts)==otdlen and branch_start is not None:
+                        branch_start['nexts'].append(nid)
+
+                    if bind<len(bert_toks)-1:
+                        tdicts.append({
+                            'token_idx':b,
+                            'pos':curpos, 
+                            'id': nid,
+                            'nexts': [str(bert_toks[bind+1])+" "+str(curpos+1)], 
+                            'score': 0
+                        })
+                    else:
+                        tdicts.append({
+                            'token_idx':b,
+                            'pos':curpos, 
+                            'id': str(b)+" "+str(pos),
+                            'nexts': [], 
+                            'score': 0
+                        })
                     curpos+=1
                 if merge or end:
                     splits_hit+=1
@@ -106,10 +130,11 @@ def greedy_flatten(tdicts, visited, node, pos, prev_cont, added_ids):
         return 
     
     scosort = list(np.argsort(node.next_scores))
-    
+    if branched and len(tdicts)>0:
+        branch_start=tdicts[-1]
     # TODO check which direction we need to go from argsort
     for i in range(0, len(scosort)):
-        greedy_flatten(tdicts, visited, node.nextlist[scosort[i]], npos, prev_cont, added_ids)
+        greedy_flatten(tdicts, visited, node.nextlist[scosort[i]], npos, prev_cont, added_ids, branch_start)
         
 def get_processed_graph_data(lanbase, stop=-1, msplits=-1):
     global max_splits

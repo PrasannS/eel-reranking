@@ -22,7 +22,7 @@ def process_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-candfile', type=str, default='beam40en_de')
-    parser.add_argument('-device', type=str, default='cuda:0')
+    parser.add_argument('-device', type=str, default='cuda:2')
 
 
     args = parser.parse_args()
@@ -81,7 +81,7 @@ def get_mbart_nll(cand, ind, inptok, labtok, mod, dev):
 
 setup = "de"
 def rescore_cands(c_list, dset):
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device = "cuda:2" if torch.cuda.is_available() else "cpu"
     if "de" in dset:
         mname = "facebook/mbart-large-50-one-to-many-mmt"
         src_l = "en_XX"
@@ -143,7 +143,7 @@ def get_allhyps_srcs(c_list):
     return allhyps, allsrcs, allrefs
 
 def mbartqe_score_all(c_list, dset):
-    #device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    #device = "cuda:2" if torch.cuda.is_available() else "cpu"
     if "de" in dset:
         lpair = "en-de"
     else:

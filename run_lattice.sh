@@ -1,12 +1,12 @@
 # First command, beam size 2, use total scoring
-#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge zip -device cuda:0 -avg_score 0.9
-#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge zip -device cuda:0 -avg_score 0.6
-#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 8 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge zip -device cuda:0 -avg_score 0.6
-#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge zip -device cuda:0 -avg_score 0.9
-#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge rcb -device cuda:0 -avg_score 1.2
-#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset en-de -beam_size 4 -task mt1n -min_len 5 -max_len 80 -ngram_suffix 4 -merge rcb -device cuda:0 -avg_score 0.9
-#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge rcb -device cuda:0 -avg_score 0.902 -nexample 100
-#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset en-de -beam_size 1 -task mt1n -min_len 5 -max_len 80 -ngram_suffix 4 -merge rcb -device cuda:0 -avg_score 0.9 -nexample 300 
+#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge zip -device cuda:2 -avg_score 0.9
+#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge zip -device cuda:2 -avg_score 0.6
+#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 8 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge zip -device cuda:2 -avg_score 0.6
+#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge zip -device cuda:2 -avg_score 0.9
+#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge rcb -device cuda:2 -avg_score 1.2
+#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset en-de -beam_size 4 -task mt1n -min_len 5 -max_len 80 -ngram_suffix 4 -merge rcb -device cuda:2 -avg_score 0.9
+#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge rcb -device cuda:2 -avg_score 0.902 -nexample 100
+#PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset en-de -beam_size 1 -task mt1n -min_len 5 -max_len 80 -ngram_suffix 4 -merge rcb -device cuda:2 -avg_score 0.9 -nexample 300 
 
 # Get the candidate files
 #python lattice_cands.py -dataset="fr_en" -path_output="mtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9"

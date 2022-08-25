@@ -133,7 +133,7 @@ def run_check(all_recombs, folder_name, device):
         fd.write("\n".join(lines))
 
 
-def main(directory, folder, device='cuda:0') -> int:
+def main(directory, folder, device='cuda:2') -> int:
     """Echo the input arguments to standard output"""
     files = os.listdir(os.path.join(directory, folder))
     print(folder)
