@@ -285,9 +285,11 @@ dmypy.json
 /.vscode
 /logs
 /candoutputs
+/factuality_explore
 /oldoutputs
 /posbert
 /torchsaved
+/a3-distrib
 latposlabels.pt
 latposlabelsdone.pt
 tmapsdone.pickle

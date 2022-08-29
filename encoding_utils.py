@@ -64,7 +64,7 @@ def makelattice_pos_data(tokmap, flat):
             res.append(tokmap[str(int(tok))].to(device))
         except:
             print("missing token")
-            res.append(torch.zeros(52).to(device))
+            res.append(torch.zeros(44).to(device))
     return torch.stack(res).float()
 
 def lattice_pos_goldlabels(datax, datay, sents):

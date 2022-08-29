@@ -62,23 +62,25 @@ def fix_att_masks (attmasks):
             a[i][i] = 1
     return attmasks
 
+
 if __name__ == "__main__":
     print("Starting up")
     sents = torch.load("./torchsaved/sents.pt")
     posids = torch.load("./torchsaved/posids.pt")
-    latattmasks = torch.load("./torchsaved/latattmasks.pt")
-    ylabels = torch.load("./torchsaved/latposylabels.pt")
+    latattmasks = torch.load("./torchsaved/fixlatattmasks.pt")
+    onemask = torch.ones_like(latattmasks)
+    ylabels = torch.load("./torchsaved/betterposlatposylabels.pt")
     latattmasks = fix_att_masks(latattmasks)
     print("Loading Model")
-    posbmodel = LinearPOSBertV1(52)
-    posbmodel.load_state_dict(torch.load("./posbert/posbertmodel/posbert.pth"))
+    posbmodel = LinearPOSBertV1(44)
+    posbmodel.load_state_dict(torch.load("./a3-distrib/ckpt/posbert.pth"))
     posbmodel.eval()
     torch.cuda.empty_cache()
     print(torch.cuda.memory_allocated("cuda:2"))
 
     print("Starting Evaluation")
     # hard default posids used
-    pred = posbmodel(sents, mod_posids(posids), latattmasks)
+    pred = posbmodel(sents, fix_posids(posids), onemask)
 
     print("Accuracy")
     print(check_accuracy(pred, ylabels))
