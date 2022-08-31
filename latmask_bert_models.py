@@ -65,7 +65,7 @@ class LatticeBertSelfAttention(nn.Module):
         # If this is instantiated as a cross-attention module, the keys
         # and values come from an encoder; the attention mask needs to be
         # such that the encoder's padding tokens are not attended to.
-        print("ATT MASK SHAPE")
+        #print("ATT MASK SHAPE")
         #print(encoder_attention_mask.shape)
         attention_mask = encoder_attention_mask
         if encoder_hidden_states is not None:
@@ -80,7 +80,7 @@ class LatticeBertSelfAttention(nn.Module):
         key_layer = self.transpose_for_scores(mixed_key_layer)
         value_layer = self.transpose_for_scores(mixed_value_layer)
 
-        print(input_attentions)
+        #print(input_attentions)
         if input_attentions is None:
             # Take the dot product between "query" and "key" to get the raw attention scores.
             attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
@@ -88,6 +88,7 @@ class LatticeBertSelfAttention(nn.Module):
             # TODO is there a layer mismatch here?
             if attention_mask is not None:
                 # Apply the attention mask is (precomputed for all layers in RobertaModel forward() function)
+                # TODO do minus infinity approach
                 attention_scores = attention_scores + attention_mask
 
             # Normalize the attention scores to probabilities.
@@ -152,7 +153,7 @@ class LatticeBertAttention(nn.Module):
         link_mask=None,
     ):
         # TODO attention_mask is fine, encoder_attention_mask gets nulled out in the previous step
-        print("LatticeBertAttention ATT MASK SHAPE")
+        #print("LatticeBertAttention ATT MASK SHAPE")
         #print(encoder_attention_mask.shape)
         self_outputs = self.self(
             hidden_states,
@@ -252,7 +253,7 @@ class LatticeBertEncoder(nn.Module):
         input_attentions=None,
         link_mask=None,
     ):
-        print("LatticeBertEncoder ATT MASK SHAPE")
+        #print("LatticeBertEncoder ATT MASK SHAPE")
         #print(encoder_attention_mask.shape)
         all_hidden_states = () if output_hidden_states else None
         all_attentions = () if output_attentions else None
@@ -396,7 +397,7 @@ class LatticeBertModel(BertPreTrainedModel):
         else:
             encoder_extended_attention_mask = None
         encoder_extended_attention_mask = extended_attention_mask
-        print("LatticeBertModel ATT MASK SHAPE")
+        #print("LatticeBertModel ATT MASK SHAPE")
         #print(encoder_extended_attention_mask.shape)
         # Prepare head mask if needed
         # 1.0 in head_mask indicate we keep the head

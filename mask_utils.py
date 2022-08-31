@@ -74,6 +74,21 @@ def correct_mask_sep(mat):
     fixed = torch.nn.functional.pad(input=mat, pad=(1, 1, 1, 1), mode='constant', value=1)
     return fixed
 
+# method that makes padding equal to 1
+def ones_padding(msk):
+    cop = msk
+    tmp = cop[0]<=0
+    lim = tmp.nonzero()
+    if len(lim)==0:
+        return cop
+    limit = lim[0]
+    #print(limit)
+    for i in range(0, len(msk)):
+        for j in range(limit, len(msk[0])):
+            cop[i][j] = 1
+            cop[j][i] = 1
+    return cop
+
 def connect_mat(pgraph):
     conm = conmat(get_adjac_mat(pgraph), max(get_poslist(pgraph)))
     conm = conm + torch.transpose(conm, 0, 1)
@@ -102,4 +117,5 @@ def connect_mat(pgraph):
         # do CLS / SEP tokens on that 
         respad = correct_mask_sep(respad)
         
-    return respad
+    respad[respad==0] = -float('inf')
+    return ones_padding(respad)
