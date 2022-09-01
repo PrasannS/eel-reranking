@@ -30,7 +30,8 @@ def create_inputs(pgraphs):
         if len(tokstmp)>=MAX_LEN-2:
             tokstmp = tokstmp[:MAXLEN-2]
             postmp = postmp[:MAXLEN-2]
-        tokstmp = [101] + tokstmp + [102]
+        # ACK how could I miss this...
+        tokstmp = [101] + tokstmp + [100]
         rem = MAX_LEN - len(tokstmp)
         postmp = [0] + postmp + [max(postmp)+1] + [0]*rem
         tokstmp = tokstmp + [0]*rem
