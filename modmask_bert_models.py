@@ -88,9 +88,10 @@ class LatticeBertSelfAttention(nn.Module):
             # TODO is there a layer mismatch here?
             if attention_mask is not None:
                 # Apply the attention mask is (precomputed for all layers in RobertaModel forward() function)
-                # TODO do minus infinity approach
+                # note minus infinity was already in the code, just in an obscure call somewhere
+                
                 attention_scores = attention_scores + attention_mask
-
+            #print(attention_mask)
             # Normalize the attention scores to probabilities.
             attention_probs = nn.Softmax(dim=-1)(attention_scores)
         else:
@@ -366,7 +367,7 @@ class LatticeBertModel(BertPreTrainedModel):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
         
-        attention_mask = 
+        #attention_mask = 
 
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")

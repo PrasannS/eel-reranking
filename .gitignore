@@ -290,6 +290,7 @@ dmypy.json
 /posbert
 /torchsaved
 /a3distrib
+/plabels
 latposlabels.pt
 latposlabelsdone.pt
 tmapsdone.pickle

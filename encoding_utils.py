@@ -31,7 +31,7 @@ def create_inputs(pgraphs):
             tokstmp = tokstmp[:MAXLEN-2]
             postmp = postmp[:MAXLEN-2]
         # ACK how could I miss this...
-        tokstmp = [101] + tokstmp + [100]
+        tokstmp = [101] + tokstmp + [102]
         rem = MAX_LEN - len(tokstmp)
         postmp = [0] + postmp + [max(postmp)+1] + [0]*rem
         tokstmp = tokstmp + [0]*rem
@@ -59,13 +59,14 @@ def dataset_make_tags(inpx, inpy):
     
 def makelattice_pos_data(tokmap, flat):
     res = []
+    numlabs = len(tokmap['101'])
     for tok in flat:
         # this should always work given how the lattice is structured
-        try:
+        if str(int(tok)) in tokmap:
             res.append(tokmap[str(int(tok))].to(device))
-        except:
+        else:
             print("missing token")
-            res.append(torch.zeros(44).to(device))
+            res.append(torch.zeros(numlabs).to(device))
     return torch.stack(res).float()
 
 def lattice_pos_goldlabels(datax, datay, sents):

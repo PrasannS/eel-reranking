@@ -1,6 +1,8 @@
 import torch
 
-# TODO more sanity checking on whether or not we're recording the right number of branches     
+# TODO more sanity checking on whether or not we're recording the right number of branches
+
+            
 def get_adjac_mat(pgraph):
     res = []
     for node in pgraph:
@@ -83,7 +85,6 @@ def ones_padding(msk):
     #print(limit)
     for i in range(0, len(msk)):
         for j in range(limit, len(msk[0])):
-            # todo undo fix here
             cop[i][j] = 1
             cop[j][i] = 1
     return cop
@@ -116,5 +117,5 @@ def connect_mat(pgraph):
         # do CLS / SEP tokens on that 
         respad = correct_mask_sep(respad)
         
-    #respad[respad==0] = -float('inf')
-    return respad #ones_padding(respad)
+    respad[respad==0] = -float('inf')
+    return ones_padding(respad)
