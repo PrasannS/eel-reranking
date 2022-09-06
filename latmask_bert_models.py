@@ -89,6 +89,7 @@ class LatticeBertSelfAttention(nn.Module):
             if attention_mask is not None:
                 # Apply the attention mask is (precomputed for all layers in RobertaModel forward() function)
                 # TODO do minus infinity approach
+                attention_mask[attention_mask==-10000.0] = -float('inf')
                 attention_scores = attention_scores + attention_mask
 
             # Normalize the attention scores to probabilities.

@@ -79,7 +79,7 @@ def render_name(task, data, mname, doc_id, inp_doc_str: str, beam_sz: int, max_l
 
 
 @torch.no_grad()
-def run_inference_step(model, input_ids, attention_mask=None, decoder_input_ids=None, targets=None, device='cuda:2', output_dec_hid=False, T=1):
+def run_inference_step(model, input_ids, attention_mask=None, decoder_input_ids=None, targets=None, device='cuda:0', output_dec_hid=False, T=1):
     decoder_input_ids = decoder_input_ids.to(device)
     input_ids = input_ids.to(device)
     if attention_mask is not None:
