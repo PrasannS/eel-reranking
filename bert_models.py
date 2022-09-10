@@ -19,9 +19,10 @@ class LinearLatticeBert(nn.Module):
             bertout = self.bert(sentences, position_ids=posids, return_dict=True, output_hidden_states=True)
         return bertout
     
-class LinearPOSBert(nn.Module):
+class LinearPOSBertV1(nn.Module):
     def __init__(self, num_labels):
         super().__init__()
+        #self.bert = LatticeBertModel(AutoConfig.from_pretrained('bert-base-cased'))
         self.bert = AutoModel.from_pretrained('bert-base-cased')
         self.probe = nn.Linear(self.bert.config.hidden_size, num_labels)
         self.to(device)
@@ -31,8 +32,5 @@ class LinearPOSBert(nn.Module):
   
     def forward(self, sentences, pos_ids=None, attmasks=None):
         with torch.no_grad(): # no training of BERT parameters
-            if pos_ids==None:
-                word_rep, sentence_rep = self.bert(sentences, return_dict=False)
-            else:
-                word_rep, sentence_rep = self.bert(sentences, position_ids=pos_ids, encoder_attention_mask=attmasks, return_dict=False)
+            word_rep, sentence_rep = self.bert(sentences, position_ids=pos_ids, encoder_attention_mask=attmasks, attention_mask=attmasks, return_dict=False)
         return self.probe(word_rep)
