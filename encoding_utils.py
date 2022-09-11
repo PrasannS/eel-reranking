@@ -3,7 +3,7 @@ from scipy.spatial.distance import cosine
 from more_itertools import locate
 from flatten_lattice import bert_tok
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
 MAX_LEN = 500
 
@@ -177,7 +177,7 @@ def subword_mask_all (sents):
 
 def check_accuracy(setpred, setlabels, sents):
     # simplify prediction tensors
-    ysimp = setlabels
+    ysimp = torch.clone(setlabels)
     psimp = torch.argmax(setpred, dim=2)
     # clean up labels
     sm = subword_mask_all(sents)
@@ -191,7 +191,23 @@ def check_accuracy(setpred, setlabels, sents):
     psimp[ysimp==0] = 0
     # compute accuracy
     acc = 1 - ((ysimp-psimp).count_nonzero())/ysimp.count_nonzero()
-    return acc
+    return acc, ysimp, psimp
+
+def get_tmap_acc(ysmp, psmp, tmaps, sents):
+    assert len(tmaps)==len(ysmp)
+    cor = 0
+    tot = 0
+    for a in ysmp.nonzero():
+        if int(psmp[a[0], a[1]]) in tmaps[a[0]][str(int(sents[a[0], a[1]]))]:
+            #print(int(ysmp[a[0], a[1]]), " ",  tmaps[a[0]][str(int(sents[a[0], a[1]]))])
+            cor+=1
+        else:
+            #print(int(ysmp[a[0], a[1]]))
+            #print(int(psmp[a[0], a[1]]), " ",tmaps[a[0]][str(int(sents[a[0], a[1]]))] )
+            ""
+        tot+=1
+    print("TMAP ACC: ", cor/tot, " TOT: ", tot)
+    return cor/tot
 
 soft = torch.nn.Softmax(dim=2)
 loss = torch.nn.BCEWithLogitsLoss()

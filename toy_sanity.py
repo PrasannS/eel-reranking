@@ -14,7 +14,7 @@ from latmask_bert_models import LatticeBertModel
 import json
 
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
 from mask_utils import *
 from encoding_utils import *
@@ -97,7 +97,7 @@ posbmodel = LinearPOSBertV1(len(list(labels.keys())))
 t = torch.load("./a3distrib/ckpt/posbert1way.pth")
 posbmodel.load_state_dict(t)
 posbmodel.eval()
-print(torch.cuda.memory_allocated("cuda:0"))
+print(torch.cuda.memory_allocated("cuda:3"))
 torch.cuda.empty_cache()
 
 # method that makes padding equal to 1

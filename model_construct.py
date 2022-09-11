@@ -7,16 +7,20 @@ from mask_utils import *
 import json
 import os
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 bert_tok = fl.bert_tok
 mbart_tok = fl.mbart_tok
 
 # -1 for whole graph, otherwise # of lattice segments to use
-STOPS = 1
+STOPS = 30
 # v3 - first whole lattice
 # v4 - first single lattice
 # v5 - single lattice with fixes
-VNUM = 5
+# v6 - 10 lattice segments
+# v7 - updated whole lattice
+# v8 - updated greedy 
+# to make new one can change VNUM, STOPS, and make folder in torchsaved -> tmapsmaskedv{VNUM}
+VNUM = 9
 MOD_NAME = 'bertonewayv1.pth'
 
 # specifies files for pre-loading
@@ -83,7 +87,7 @@ def get_biglabset(split):
         del r
         del tmap
         torch.cuda.empty_cache()
-        print(torch.cuda.memory_allocated("cuda:0"))
+        print(torch.cuda.memory_allocated("cuda:3"))
 
 def load_model(labels):
     # load model, same for gold generation and inference
@@ -94,7 +98,7 @@ def load_model(labels):
     del t
     torch.cuda.empty_cache()
 
-    print("GPU Mem Used = ", torch.cuda.memory_allocated("cuda:0"))
+    print("GPU Mem Used = ", torch.cuda.memory_allocated("cuda:3"))
 
     return posbmodel
 
@@ -126,7 +130,6 @@ if __name__ == "__main__":
         torch.save(attmasks, './torchsaved/'+LOADED['amasks'])
 
     # convert to backwards-only mask
-    # TODO some sort of bug causing NaN predictions
     attmasks = torch.tril(attmasks)
 
     # credit to tutorial by https://pageperso.lis-lab.fr/benoit.favre/pstaln/09_embedding_evaluation.html for 
@@ -143,11 +146,10 @@ if __name__ == "__main__":
     print("Average, max nodes: ", avg_nodes(sents))
 
     # generate token label maps if they don't exist
-    # TODO for now reset every time
-    # if os.path.exists('./torchsaved/'+LOADED['tmaps']+'tmaps_0.pkl')==False:
-    with torch.no_grad():
-        # used directly to generate gold labels
-        get_biglabset(1)
+    if os.path.exists('./torchsaved/'+LOADED['tmaps']+'tmaps_0.pkl')==False:
+        with torch.no_grad():
+            # used directly to generate gold labels
+            get_biglabset(1)
     
     # load token label maps, use to get y-labels
     N_EX = 101
@@ -173,16 +175,27 @@ if __name__ == "__main__":
     # Make all predictions with ablations
     sents, posids = create_inputs(processedgraphs)
     pred1 = posbmodel(sents, mod_posids(posids), attmasks)
-    print(check_accuracy(pred1, latposylabels, sents))
+    a, ysmp, psmp = check_accuracy(pred1, latposylabels, sents)
+    print(a)
+    get_tmap_acc(ysmp, psmp, tmaps, sents)
+
     sents, posids = create_inputs(processedgraphs)
     pred2 = posbmodel(sents, fix_posids(posids), attmasks)
-    print(check_accuracy(pred2, latposylabels, sents))
+    a, ysmp, psmp = check_accuracy(pred2, latposylabels, sents)
+    print(a)
+    get_tmap_acc(ysmp, psmp, tmaps, sents)
+
     sents, posids = create_inputs(processedgraphs)
     pred3 = posbmodel(sents, mod_posids(posids), None)
-    print(check_accuracy(pred3, latposylabels, sents))
+    a, ysmp, psmp =check_accuracy(pred3, latposylabels, sents)
+    print(a)
+    get_tmap_acc(ysmp, psmp, tmaps, sents)
+
     sents, posids = create_inputs(processedgraphs)
     pred4 = posbmodel(sents, fix_posids(posids), None)
-    print(check_accuracy(pred4, latposylabels, sents))
+    a, ysmp, psmp =check_accuracy(pred4, latposylabels, sents)
+    print(a)
+    get_tmap_acc(ysmp, psmp, tmaps, sents)
 
 
 

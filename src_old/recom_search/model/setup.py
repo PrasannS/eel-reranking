@@ -60,7 +60,7 @@ def read_mt_data(path='./mt-data/use', name='en-de'):
 MODEL_CACHE = './cache'
 
 
-def setup_model(task='mt1n', dataset='en-de', model_name='facebook/mbart-large-50-one-to-many-mmt', device_name='cuda:0'):
+def setup_model(task='mt1n', dataset='en-de', model_name='facebook/mbart-large-50-one-to-many-mmt', device_name='cuda:3'):
     #TODO change with dset, un-hard-code this
     task = 'mtn1'
     dataset = 'fr-en'
@@ -163,7 +163,7 @@ def setup_logger(name):
 def process_arg():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-device', type=str, default='cuda:0')
+    parser.add_argument('-device', type=str, default='cuda:3')
     parser.add_argument("-model", type=str, choices=[
                         'dbs', 'bs', 'greedy', 'topp', 'temp', 'recom_bs', 'recom_sample', 'astar','astar_base'], default='bs')
     parser.add_argument('-beam_size', type=int, default=15)

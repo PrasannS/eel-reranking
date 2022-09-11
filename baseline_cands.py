@@ -12,7 +12,7 @@ def process_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-method', type=str)
-    parser.add_argument('-device', type=str, default='cuda:0')
+    parser.add_argument('-device', type=str, default='cuda:3')
     parser.add_argument('-dataset', default='fr_en', type=str)
     parser.add_argument('-top_p', type=float, default=0.6)
     parser.add_argument('-num_examples', type=int, default=800)
@@ -164,5 +164,5 @@ if __name__ == "__main__":
 
 
 # select device
-#device = "cuda:0" if torch.cuda.is_available() else "cpu"
+#device = "cuda:3" if torch.cuda.is_available() else "cpu"
 
