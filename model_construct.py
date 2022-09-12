@@ -12,7 +12,7 @@ bert_tok = fl.bert_tok
 mbart_tok = fl.mbart_tok
 
 # -1 for whole graph, otherwise # of lattice segments to use
-STOPS = 30
+STOPS = -1
 # v3 - first whole lattice
 # v4 - first single lattice
 # v5 - single lattice with fixes
@@ -20,7 +20,7 @@ STOPS = 30
 # v7 - updated whole lattice
 # v8 - updated greedy 
 # to make new one can change VNUM, STOPS, and make folder in torchsaved -> tmapsmaskedv{VNUM}
-VNUM = 9
+VNUM = 7
 MOD_NAME = 'bertonewayv1.pth'
 
 # specifies files for pre-loading

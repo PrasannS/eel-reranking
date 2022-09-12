@@ -197,6 +197,8 @@ def get_tmap_acc(ysmp, psmp, tmaps, sents):
     assert len(tmaps)==len(ysmp)
     cor = 0
     tot = 0
+    errinds = 0
+    errtot = 0
     for a in ysmp.nonzero():
         if int(psmp[a[0], a[1]]) in tmaps[a[0]][str(int(sents[a[0], a[1]]))]:
             #print(int(ysmp[a[0], a[1]]), " ",  tmaps[a[0]][str(int(sents[a[0], a[1]]))])
@@ -205,8 +207,11 @@ def get_tmap_acc(ysmp, psmp, tmaps, sents):
             #print(int(ysmp[a[0], a[1]]))
             #print(int(psmp[a[0], a[1]]), " ",tmaps[a[0]][str(int(sents[a[0], a[1]]))] )
             ""
+            errinds+=a[1]
+            errtot+=1
         tot+=1
     print("TMAP ACC: ", cor/tot, " TOT: ", tot)
+    print("ERR AVG IND: ", errinds/errtot)
     return cor/tot
 
 soft = torch.nn.Softmax(dim=2)
