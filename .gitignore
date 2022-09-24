@@ -291,6 +291,10 @@ dmypy.json
 /torchsaved
 /a3distrib
 /plabels
+/mlqe-pe
+/crit_err_data
+/processeddata
+
 latposlabels.pt
 latposlabelsdone.pt
 tmapsdone.pickle

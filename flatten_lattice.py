@@ -7,8 +7,10 @@ import os
 GBASE = "./reverse_graphs/"
 endebase = "mt1n_en-de_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9/"
 frenbase = "mtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.902_0.0_0.9/"
-bert_tok = AutoTokenizer.from_pretrained('bert-base-cased')
+# TODO lazy, just changing bert_tok to xlm_tok 
+# bert_tok = AutoTokenizer.from_pretrained('bert-base-cased')
 mbart_tok = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
+bert_tok = AutoTokenizer.from_pretrained("xlm-roberta-base")
 mbart_tok.src_lang = "en_XX"
 
 # method that takes in # of stops
@@ -93,7 +95,8 @@ def greedy_flatten(tdicts, visited, node, pos, prev_cont, added_ids, branch_star
                 otdlen = len(tdicts)
                 for bind in range(0, len(bert_toks)):
                     b = bert_toks[bind]
-                    if b==101 or b==102:
+                    # change to 101, 102 for bert, change to 0, 2 for xlm
+                    if b==0 or b==2:
                         continue
                     nid = str(b)+" "+str(curpos)
                     # if we're at the start, add this node to next of branch node
@@ -150,6 +153,8 @@ def find_backs(start, fgraph, covered):
 
 # get token list that tracks canonical forward
 def find_fronts(start, fgraph, covered):
+    if len(fgraph[start]['nexts'])==0:
+        return []
     nid = fgraph[start]['nexts'][-1]
     res = []
     for i in range(start, len(fgraph)):

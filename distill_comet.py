@@ -1,0 +1,127 @@
+from transformers import AutoModel, AutoTokenizer
+import torch
+from torch.utils.data import DataLoader, Dataset
+import torch.nn as nn
+import csv
+import sys
+import random
+import pandas as pd
+from rerank_score_cands_new import load_cands
+import numpy as np
+from comet import download_model, load_from_checkpoint
+import pickle
+from sklearn.utils import shuffle
+
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+csv.field_size_limit(sys.maxsize)
+xlm_tok = AutoTokenizer.from_pretrained('xlm-roberta-base')
+loss_function = nn.MSELoss()
+
+# Encoder-Decoder Model Embedding, Add a Weighted Layer at the end that leads to regression
+class XLMCometRegressor(nn.Module):
+    
+    def __init__(self, drop_rate=0.1):
+        # TODO should we be freezing layers?
+        super().__init__()
+        
+        self.xlmroberta = AutoModel.from_pretrained('xlm-roberta-base')
+        # Num labels 1 should just indicate regression (?)
+        self.regressor = nn.Sequential(
+            nn.Dropout(drop_rate),
+            nn.Linear(self.xlmroberta.config.hidden_size, 1), 
+        )
+        self.to(device)
+        
+    def forward(self, input_ids, attention_masks):
+        # don't finetune xlmroberta model
+        #with torch.no_grad():
+        word_rep, sentence_rep = self.xlmroberta(input_ids, attention_mask=attention_masks, encoder_attention_mask=attention_masks, return_dict=False)
+        # use the first <s> token as a CLS token, TODO experiment with using the sum of 
+        # outputs = self.regressor(torch.sum(word_rep, 1))
+        outputs = self.regressor(torch.sum(word_rep, 1))
+        #print("Shape: ", outputs.shape)
+        return outputs
+
+# construct inputs from dataframe
+def get_test_inputs(inps, hyps):
+    assert len(inps)==len(hyps)
+    inpdf = pd.DataFrame()
+    inpdf['inp'] = inps
+    inpdf['hyp'] = hyps
+    xinp = []
+    maskinp = []
+    
+    for index, row in inpdf.iterrows():
+        if index%1000==0:
+            print(index)
+        #print(row['c1'], row['c2'])
+        # will need to make a custom mask (maybe) so that inputs from both languages are encoded separately
+        toktmp = xlm_tok(row['inp']).input_ids
+        lent = len(toktmp)
+        hyptmp = xlm_tok(row['hyp']).input_ids
+        toktmp.extend(hyptmp)
+        mask = torch.zeros(len(toktmp), len(toktmp))
+        # should set upper left and bottom right quadrants to 1, mask other stuff
+        # TODO make different types of masks. 
+        mask[:lent, :lent] = 1
+        mask[lent:, lent:] = 1
+        xinp.append(toktmp)
+        maskinp.append(mask)
+    return xinp, maskinp
+
+class RegressionDataset(Dataset):
+    def __init__(self, sentences, masks):
+        assert len(sentences) == len(masks)
+        self.sentences = sentences
+        self.masks = masks
+
+    def __getitem__(self, i):
+        return self.sentences[i], self.masks[i]
+
+    def __len__(self):
+        return len(self.sentences)
+
+def collate_custom(datafull):
+    #print(len(datafull[0]))
+    data = [torch.tensor(d[0]) for d in datafull]
+    masdata=  [d[1] for d in datafull]
+    max_len = max([x.squeeze().numel() for x in data])
+    data = [torch.nn.functional.pad(x, pad=(0, max_len - x.numel()), mode='constant', value=0) for x in data]
+    if max_len>508:
+        data = [d[:508] for d in data]
+    data = torch.stack(data).to(device)
+    # just a normal mask for now
+    masdata = [torch.ones_like(m) for m in masdata]
+    masdata = [torch.nn.functional.pad(x, pad=(0, max_len - x[0].numel(), 0, max_len - x[0].numel()), mode='constant', value=0) for x in masdata]
+    if max_len>508:
+        masdata = [d[:508, :508] for d in masdata]
+    masdata = torch.stack(masdata).to(device)
+    
+    return data, masdata
+
+def load_distill_model():
+    model = XLMCometRegressor(drop_rate=0.1)
+    model.load_state_dict(torch.load("./torchsaved/comestim15.pt"))
+    model.eval()
+    return model
+
+def evaluate(model, tdataloader, device):
+    model.eval()
+    preds = []
+    ind = 0
+    for batch in tdataloader:
+        if ind%100==0:
+            print(ind)
+        batch_inputs, batch_masks = \
+                                 tuple(b.to(device) for b in batch)
+        with torch.no_grad():
+            outputs = model(batch_inputs, batch_masks)
+        preds.extend(list(outputs.squeeze()))
+        ind+=1
+    return preds
+
+def run_distill_comet(inps, hyps, model):
+    xtest, mtest = get_test_inputs(inps, hyps)
+    testloader = DataLoader(RegressionDataset(xtest, mtest), batch_size=32, shuffle=False, collate_fn=collate_custom)
+    results =  evaluate(model, testloader, device)
+    return [float(r) for r in results]

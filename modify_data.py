@@ -10,6 +10,7 @@ import json
 import argparse
 from mbart_qe import download_mbart_qe, load_mbart_qe
 from comet import download_model, load_from_checkpoint
+from distill_comet import load_distill_model, run_distill_comet
 
 from transquest.algo.sentence_level.monotransquest.run_model import (
     MonoTransQuestModel,
@@ -209,6 +210,28 @@ def transquest(hyps, srcs):
     torch.cuda.empty_cache()
     return transquest_scores
 
+def distillcom_all(c_list):
+    allhyps, allsrcs, allrefs = get_allhyps_srcs(c_list)
+    print("distillcomet scoring candidates")
+    dcom_all = distillcomet(allhyps, allsrcs)
+    start = 0
+    for c in c_list:
+        
+        slen = len(c['modelscores'])
+        scotmp = list(dcom_all[start:start+slen])
+
+        c["distillscores"] = scotmp
+        assert len(scotmp)==len(c["modelscores"])
+        start+=slen
+
+    return c_list
+
+def distillcomet (hyps, srcs):
+    discomodel = load_distill_model()
+    scores = run_distill_comet(srcs, hyps, discomodel)
+    del discomodel
+    return scores
+    
 def savepostjson(fname, cands, pid):
 
     for l in cands:
@@ -234,7 +257,10 @@ if __name__ == "__main__":
         original = json.load(f)['data']
     if "rescores" not in original[0].keys():
         original = rescore_cands(original, dset)
-        savepostjson(args.candfile, original, 1)
+        savepostjson(args.candfile, original, 2)
+    if "distillscores" not in original[0].keys():
+        original = distillcom_all(original)
+        savepostjson(args.candfile, original, 2)
     """
     if "mbartqescores" not in original[0].keys():
         original = mbartqe_score_all(original, dset)
@@ -246,5 +272,5 @@ if __name__ == "__main__":
     """
     
 
-    savepostjson(args.candfile, original, 1)
+    savepostjson(args.candfile, original, 2)
     
