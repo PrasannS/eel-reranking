@@ -13,6 +13,7 @@ cometqe_dir = "./cometqemodel"
 cometqe_model = "wmt20-comet-qe-da"
 cometmodel = "wmt20-comet-da"
 batch_size = 64
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
 def process_args():
 
@@ -168,13 +169,14 @@ def get_reranked_cands(c_data):
     
     if cheat=='no' or cheat=='both':
         cometqe_path = download_model(cometqe_model, cometqe_dir)
-        model = load_from_checkpoint(cometqe_path)
+        model = load_from_checkpoint(cometqe_path).to(device)
+        model.to(device)
         qescores = get_cometqe_scores(allhyps, allsrcs)
         del cometqe_path
         del model
     if cheat=='yes' or cheat=='both':
         comet_path = download_model(cometmodel, "./cometmodel")
-        comet = load_from_checkpoint(comet_path)
+        comet = load_from_checkpoint(comet_path).to(device)
         comscores = get_comet_scores(allhyps, allsrcs, allrefs)
         del comet_path
         del comet
@@ -309,6 +311,7 @@ if __name__ == "__main__":
     
     comet_path = download_model(cometmodel, "./cometmodel")
     comet = load_from_checkpoint(comet_path)
+    comet.to(device)
     rrinfo = comet_rerank_info(rerank_info)
     del comet
     del comet_path

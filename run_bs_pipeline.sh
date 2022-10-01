@@ -1,4 +1,4 @@
-python baseline_cands.py -method="beam" -num_hyps=48 -dataset='en_de' -num_examples=1000 -max_len=80
+#python baseline_cands.py -method="beam" -num_hyps=51 -dataset='fr_en' -num_examples=10000 -max_len=70
 #python baseline_cands.py -method="beam" -num_hyps=10 -dataset='en_de' -num_examples=100 -max_len=80
 #python baseline_cands.py -method="beam" -num_hyps=4 -dataset='en_de' -num_examples=100 -max_len=80
 
@@ -24,6 +24,6 @@ python baseline_cands.py -method="beam" -num_hyps=48 -dataset='en_de' -num_examp
 
 #python baseline_cands.py -method="nucleus" -num_hyps=10 -dataset='en_de'
 
-#python rerank_score_cands_new.py -candfile="beam4fr_en" -oracle="both"
+python rerank_score_cands_new.py -candfile="beam51fr_en" -oracle="both"
 #python modify_data.py -candfile="beam4fr_en"
 

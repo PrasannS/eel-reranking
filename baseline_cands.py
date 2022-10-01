@@ -1,5 +1,3 @@
-from lib2to3.pgen2.tokenize import tokenize
-import datasets
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 import json
@@ -7,6 +5,8 @@ import argparse
 import mt_data
 import pandas as pd
 import time
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+
 
 def process_args():
 

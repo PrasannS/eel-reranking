@@ -22,6 +22,8 @@ def get_processed_graph_data(lanbase, stop=-1, msplits=-1):
     base = GBASE+lanbase
     paths = os.listdir(base)
     result = []
+    srcs = []
+    refs = []
     if stop==-1:
         stop = len(paths)
     # get flattened version of lattice for each lattice in directory
@@ -30,7 +32,9 @@ def get_processed_graph_data(lanbase, stop=-1, msplits=-1):
         curgraph = load_graph(base+paths[i])
         # get rid of duplicate nodes TODO [happens surprisingly often?]
         result.append(remove_duplicates(flatten_lattice(curgraph)))
-    return result
+        srcs.append(curgraph['input'])
+        refs.append(curgraph['ref'])
+    return result, srcs, refs
 
 # flatten out lattice 
 def flatten_lattice(graph):

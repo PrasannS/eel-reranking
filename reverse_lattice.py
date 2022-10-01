@@ -7,6 +7,8 @@ def reverse_graph(graph):
     allnodes = {}
     for g in graph.ends:
         update_graph(allnodes, g)
+    allnodes['input'] = graph.document
+    allnodes['ref'] = graph.reference
     return allnodes
 
 def update_graph(nodedict, node):
@@ -47,7 +49,7 @@ def update_graph(nodedict, node):
 def num_choices (ndict):
     cnt = 0
     for n in ndict.keys():
-        if 'root' in n:
+        if 'root' in n or 'input' in n or 'ref' in n:
             continue
         curnode = ndict[n]
         if len(curnode.nextlist)>1:
