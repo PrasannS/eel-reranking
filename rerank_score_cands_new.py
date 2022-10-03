@@ -13,13 +13,13 @@ cometqe_dir = "./cometqemodel"
 cometqe_model = "wmt20-comet-qe-da"
 cometmodel = "wmt20-comet-da"
 batch_size = 64
-device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 def process_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-candfile', type=str, default='beam40en_de')
-    parser.add_argument('-device', type=str, default='cuda:3')
+    parser.add_argument('-device', type=str, default='cuda:1')
     parser.add_argument('-oracle', type=str, default='no')
 
 
@@ -240,7 +240,7 @@ def get_mbart_nll(cand, ind, tok, mod, dev):
    
 setup = "de"
 def rescore_cands(c_list):
-    device = "cuda:3" if torch.cuda.is_available() else "cpu"
+    device = "cuda:1" if torch.cuda.is_available() else "cpu"
     if setup == "de":
         mname = "facebook/mbart-large-50-one-to-many-mmt"
         src_l = "en_XX"

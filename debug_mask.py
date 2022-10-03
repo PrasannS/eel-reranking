@@ -3,7 +3,7 @@ from transformers import AutoConfig
 import torch
 import pickle
 
-device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 class LinearPOSBertV1(torch.nn.Module):
     def __init__(self, num_labels):
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     posbmodel.load_state_dict(t)
     posbmodel.eval()
     torch.cuda.empty_cache()
-    print(torch.cuda.memory_allocated("cuda:3"))
+    print(torch.cuda.memory_allocated("cuda:1"))
 
     print("Starting Evaluation")
     # hard default posids used

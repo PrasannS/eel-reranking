@@ -12,7 +12,7 @@ from comet import download_model, load_from_checkpoint
 import pickle
 from sklearn.utils import shuffle
 
-device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 csv.field_size_limit(sys.maxsize)
 xlm_tok = AutoTokenizer.from_pretrained('xlm-roberta-base')
 loss_function = nn.MSELoss()
@@ -37,8 +37,35 @@ class XLMCometRegressor(nn.Module):
         #with torch.no_grad():
         word_rep, sentence_rep = self.xlmroberta(input_ids, attention_mask=attention_masks, encoder_attention_mask=attention_masks, return_dict=False)
         # use the first <s> token as a CLS token, TODO experiment with using the sum of 
-        # outputs = self.regressor(torch.sum(word_rep, 1))
+        # ensure padding not factored in
+        word_rep = word_rep*(input_ids>0)
         outputs = self.regressor(torch.sum(word_rep, 1))
+        #print("Shape: ", outputs.shape)
+        return outputs
+    
+# Returns Token Scores For Each (Sum becomes Regression)
+class XLMCometEmbeds(nn.Module):
+    
+    def __init__(self, drop_rate=0.1):
+        # TODO should we be freezing layers?
+        super().__init__()
+        
+        self.xlmroberta = AutoModel.from_pretrained('xlm-roberta-base')
+        # Num labels 1 should just indicate regression (?)
+        self.regressor = nn.Sequential(
+            nn.Dropout(drop_rate),
+            nn.Linear(self.xlmroberta.config.hidden_size, 1), 
+        )
+        self.to(device)
+        
+    def forward(self, input_ids, positions, attention_masks):
+        # don't finetune xlmroberta model
+        #with torch.no_grad():
+        word_rep, sentence_rep = self.xlmroberta(input_ids, position_ids = positions, attention_mask=attention_masks, encoder_attention_mask=attention_masks, return_dict=False)
+        # use the first <s> token as a CLS token, TODO experiment with using the sum of 
+        # ensure padding not factored in
+        word_rep = word_rep*(input_ids>0).unsqueeze(-1)
+        outputs = self.regressor(word_rep)
         #print("Shape: ", outputs.shape)
         return outputs
 

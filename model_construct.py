@@ -7,7 +7,7 @@ from mask_utils import *
 import json
 import os
 
-device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 bert_tok = fl.bert_tok
 mbart_tok = fl.mbart_tok
 
@@ -87,7 +87,7 @@ def get_biglabset(split):
         del r
         del tmap
         torch.cuda.empty_cache()
-        print(torch.cuda.memory_allocated("cuda:3"))
+        print(torch.cuda.memory_allocated("cuda:1"))
 
 def load_model(labels):
     # load model, same for gold generation and inference
@@ -98,7 +98,7 @@ def load_model(labels):
     del t
     torch.cuda.empty_cache()
 
-    print("GPU Mem Used = ", torch.cuda.memory_allocated("cuda:3"))
+    print("GPU Mem Used = ", torch.cuda.memory_allocated("cuda:1"))
 
     return posbmodel
 

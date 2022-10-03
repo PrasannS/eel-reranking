@@ -3,7 +3,7 @@ from scipy.spatial.distance import cosine
 from more_itertools import locate
 from flatten_lattice import bert_tok
 
-device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 MAX_LEN = 500
 
@@ -59,10 +59,11 @@ def create_inputs(pgraphs):
         if len(tokstmp)>=MAX_LEN-2:
             tokstmp = tokstmp[:MAXLEN-2]
             postmp = postmp[:MAXLEN-2]
-        # ACK how could I miss this...
-        tokstmp = [101] + tokstmp + [102]
+        # TODO change back for POS Bert
+        
+        tokstmp = tokstmp
         rem = MAX_LEN - len(tokstmp)
-        postmp = [0] + postmp + [max(postmp)+1] + [0]*rem
+        postmp = postmp + [0]*rem
         tokstmp = tokstmp + [0]*rem
         result_tok.append(tokstmp)
         result_pos.append(postmp)
