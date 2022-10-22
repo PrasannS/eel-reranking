@@ -113,11 +113,12 @@ def remove_dups(allplists):
     
 STOP = 100    
 nodeset = set()
-
+tot = 0
 # TODO, wait, does this just mean that recombination doesn't do anything
 # use candidates from this as a theoretical bound on what lattices can do
 def get_all_possible_candidates(fname):
     global nodeset
+    global tot 
     graph = get_graph(BASE+fname)
     scores =  []
     cands = []
@@ -131,17 +132,20 @@ def get_all_possible_candidates(fname):
                 break
             fullplist.append(p)
             generated+=1
-    print("num nodes")
-    print(len(nodeset))
+    #print("num nodes")
+    #print(len(nodeset))
     nodeset = set()
     fullplist = remove_dups(fullplist)
-    print("candidates")
-    print(len(fullplist))
-    print("ends")
-    print(len(graph.ends))
+    #print("candidates")
+    #print(len(fullplist))
+    #print("ends")
+    #print(len(graph.ends))
+    if tot%300==0:
+        print(tot)
     for plist in fullplist:
         scores.append(get_plist_sco(plist))
         cands.append(get_plist_str(plist))
+    tot+=1
     
     # TODO some kind of filtration that prevents super similar or bad stuff from being used
     return scores, cands, ref, src
@@ -168,7 +172,10 @@ def process_save_all_graphs(explode):
         # s, c, r, d = get_path_sample(fnam)
         # heavy duty version
         if explode=="True":
-            s, c, r, d = get_all_possible_candidates(fnam)
+            try:
+                s, c, r, d = get_all_possible_candidates(fnam)
+            except:
+                s, c, r, d = [], [], "", ""
         else:
             s, c, r, d = get_path_sample(fnam)
         cand_sorted = [i for _,i in sorted(zip(s,c))]

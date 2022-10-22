@@ -26,7 +26,7 @@ def render_address(root = 'output') ->dict:
     return d
 
 def read_mt_data(path='/mnt/data1/prasann/latticegen/lattice-generation/mt-data/use', name='en-de'):
-    if 'fr' in name:
+    if 'bigboi' in name:
         datadf = mt_data.load_generate_set(100, "fr_en")
         slines = list(datadf['fr'])
         tlines = list(datadf['en'])

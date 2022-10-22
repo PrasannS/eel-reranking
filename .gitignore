@@ -294,6 +294,7 @@ dmypy.json
 /mlqe-pe
 /crit_err_data
 /processeddata
+/trainlogs
 
 latposlabels.pt
 latposlabelsdone.pt

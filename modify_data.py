@@ -48,7 +48,8 @@ def convert_wmt ():
             res.append(f)
             i = i+1
     random.shuffle(res)
-    res = res[:3000]
+    print("GOT HERE SOMEHOW")
+    res = res[:10000]
     tmpdf = pd.DataFrame(res)
     tmpdf['de'] = tmpdf[0]
     tmpdf['en'] = tmpdf[1]

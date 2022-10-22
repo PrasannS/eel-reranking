@@ -1,3 +1,4 @@
+from tkinter.tix import MAX
 import torch
 from scipy.spatial.distance import cosine
 from more_itertools import locate
@@ -47,24 +48,27 @@ def clean_empty(rarrs, pgraphs):
     assert len(rarrs)==len(pgraphs)
             
 MAXLEN = 500
+# posids are the first posids to be set for each value
 def create_inputs(pgraphs):
     result_tok = []
     result_pos = []
     for p in pgraphs:
-        tokstmp = []
-        postmp = []
+        tokstmp = [0]*MAX_LEN
+        postmp = [0]*MAX_LEN
+        idl = [t['id'] for t in p]
+        ind = 0
         for tok in p:
-            tokstmp.append(tok['token_idx'])
-            postmp.append(tok['pos']+1)
-        if len(tokstmp)>=MAX_LEN-2:
-            tokstmp = tokstmp[:MAXLEN-2]
-            postmp = postmp[:MAXLEN-2]
-        # TODO change back for POS Bert
+            if ind==MAXLEN:
+                break
+            tokstmp[ind] = tok['token_idx']
+            for n in tok['nexts']:
+                try:
+                    if postmp[idl.index(n)]==0:
+                        postmp[idl.index(n)] = min(tok['pos'], postmp[ind])+1
+                except:
+                    ""
+            ind+=1
         
-        tokstmp = tokstmp
-        rem = MAX_LEN - len(tokstmp)
-        postmp = postmp + [0]*rem
-        tokstmp = tokstmp + [0]*rem
         result_tok.append(tokstmp)
         result_pos.append(postmp)
         

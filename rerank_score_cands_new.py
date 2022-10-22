@@ -46,7 +46,7 @@ def process_cands(cand_data):
     # return refs, hyps, srcs
     return [cand_data['ref']]*clen, cand_data['cands'], [cand_data['inp']]*clen
 
-def get_cometqe_scores(hyps, srcs):
+def get_cometqe_scores(hyps, src):
     cometqe_input = [{"src": src, "mt": mt} for src, mt in zip(srcs, hyps)]
     # sentence-level and corpus-level COMET
     outputs = model.predict(

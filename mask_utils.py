@@ -1,4 +1,5 @@
 import torch
+# TODO go into github to get the older version of this file
 
 # TODO more sanity checking on whether or not we're recording the right number of branches     
 def get_adjac_mat(pgraph):
@@ -13,43 +14,6 @@ def get_adjac_mat(pgraph):
         res.append(torch.tensor(tmp))
     return torch.stack(res)
 
-def get_connected(adjac, n):
-    res = adjac
-    tot = res
-    for i in range(0, n):
-        res = torch.matmul(res, adjac)
-        tot = res+tot
-    return tot
-
-def get_connected_inds(adjac, row, ind_dict):
-    if str(row) in ind_dict:
-        return ind_dict[str(row)]
-    try:
-        imnext = torch.nonzero(adjac[row])[0]
-    except:
-        print(row)
-        return torch.tensor([0])
-    if str(row) not in ind_dict:
-        ind_dict[str(row)] = set()
-    for im in imnext:
-        if im not in ind_dict[str(row)]:
-            ind_dict[str(row)].add(im)
-            morecon = get_connected_inds(adjac, im, ind_dict)
-            for m in morecon:
-                ind_dict[str(row)].add(m)
-    return ind_dict[str(row)]
-    
-def connected_manual(adjac):
-    ind_dict = {}
-    get_connected_inds(adjac, 0, ind_dict)
-    return ind_dict
-
-def matpow(adj, n):
-    start = adj
-    for i in range(n-1):
-        start = torch.mm(start, adj)
-    return start
-
 def get_poslist(processed):
     res = []
     for p in processed:
@@ -58,6 +22,7 @@ def get_poslist(processed):
 
 def conmat(adj, longestpath):
     res = torch.zeros_like(adj)
+    adj = torch.triu(adj)
     start = adj
     for i in range(0, longestpath):
         if i>0:
@@ -69,24 +34,9 @@ def conmat(adj, longestpath):
 def correct_mask_sep(mat):
     for i in range(len(mat)):
         mat[i][i] = 1
-    fixed = torch.nn.functional.pad(input=mat, pad=(1, 1, 1, 1), mode='constant', value=1)
-    return fixed
-
-# method that makes padding equal to 1
-def ones_padding(msk):
-    cop = msk
-    tmp = cop[0]<=0
-    lim = tmp.nonzero()
-    if len(lim)==0:
-        return cop
-    limit = lim[0]
-    #print(limit)
-    for i in range(0, len(msk)):
-        for j in range(limit, len(msk[0])):
-            # todo undo fix here
-            cop[i][j] = 1
-            cop[j][i] = 1
-    return cop
+    # TODO need to remove for stuff
+    # fixed = torch.nn.functional.pad(input=mat, pad=(1, 1, 1, 1), mode='constant', value=1)
+    return mat
 
 def connect_mat(pgraph):
     conm = conmat(get_adjac_mat(pgraph), max(get_poslist(pgraph)))
@@ -107,11 +57,12 @@ def connect_mat(pgraph):
             for j in range(cpmax):
                 respad[i][j] = cmat[i][j]
     else:
+        # TODO made changes here
         # we're over the limit, first get truncated version
-        respad = torch.zeros((MAX-2, MAX-2))
+        respad = torch.zeros((MAX, MAX))
         # make truncated matrix
-        for i in range(MAX-2):
-            for j in range(MAX-2):
+        for i in range(MAX):
+            for j in range(MAX):
                 respad[i][j] = cmat[i][j]
         # do CLS / SEP tokens on that 
         respad = correct_mask_sep(respad)

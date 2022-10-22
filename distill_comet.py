@@ -1,3 +1,4 @@
+from genericpath import exists
 from transformers import AutoModel, AutoTokenizer
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -38,7 +39,7 @@ class XLMCometRegressor(nn.Module):
         word_rep, sentence_rep = self.xlmroberta(input_ids, attention_mask=attention_masks, encoder_attention_mask=attention_masks, return_dict=False)
         # use the first <s> token as a CLS token, TODO experiment with using the sum of 
         # ensure padding not factored in
-        word_rep = word_rep*(input_ids>0)
+        word_rep = word_rep*(input_ids>0).unsqueeze(-1)
         outputs = self.regressor(torch.sum(word_rep, 1))
         #print("Shape: ", outputs.shape)
         return outputs
@@ -77,7 +78,15 @@ def get_test_inputs(inps, hyps):
     inpdf['hyp'] = hyps
     xinp = []
     maskinp = []
+    if exists("torchsaved/latxinp.pkl"):
+        with open("torchsaved/latxinp.pkl", "rb") as f:
+            xinp = pickle.load(f)
+        with open("torchsaved/latmaskinp.pkl", "rb") as f:
+            maskinp = pickle.load(f)
+
+        return xinp, maskinp
     
+    print("total = ", len(inpdf))
     for index, row in inpdf.iterrows():
         if index%1000==0:
             print(index)
@@ -87,13 +96,19 @@ def get_test_inputs(inps, hyps):
         lent = len(toktmp)
         hyptmp = xlm_tok(row['hyp']).input_ids
         toktmp.extend(hyptmp)
-        mask = torch.zeros(len(toktmp), len(toktmp))
-        # should set upper left and bottom right quadrants to 1, mask other stuff
-        # TODO make different types of masks. 
-        mask[:lent, :lent] = 1
-        mask[lent:, lent:] = 1
+        mask = torch.ones(len(toktmp), len(toktmp))
+        # make causal mask
+        mask[:lent, lent:] = 0
+        mask[lent:, lent:] = torch.tril(mask[lent:, lent:])
         xinp.append(toktmp)
         maskinp.append(mask)
+    with open("torchsaved/latxinp.pkl", "wb") as f:
+        pickle.dump(xinp,f )
+    with open("torchsaved/latmaskinp.pkl", "wb") as f:
+        pickle.dump(maskinp,f )
+    
+
+    
     return xinp, maskinp
 
 class RegressionDataset(Dataset):
@@ -128,7 +143,7 @@ def collate_custom(datafull):
 
 def load_distill_model():
     model = XLMCometRegressor(drop_rate=0.1)
-    model.load_state_dict(torch.load("./torchsaved/comestim15.pt"))
+    model.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
     model.eval()
     return model
 
@@ -137,7 +152,7 @@ def evaluate(model, tdataloader, device):
     preds = []
     ind = 0
     for batch in tdataloader:
-        if ind%100==0:
+        if ind%50==0:
             print(ind)
         batch_inputs, batch_masks = \
                                  tuple(b.to(device) for b in batch)
@@ -145,6 +160,8 @@ def evaluate(model, tdataloader, device):
             outputs = model(batch_inputs, batch_masks)
         preds.extend(list(outputs.squeeze()))
         ind+=1
+    with open("./torchsaved/lattestsaved.pkl", "wb") as f:
+        pickle.dump(preds, f)
     return preds
 
 def run_distill_comet(inps, hyps, model):

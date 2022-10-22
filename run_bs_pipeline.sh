@@ -24,6 +24,6 @@
 
 #python baseline_cands.py -method="nucleus" -num_hyps=10 -dataset='en_de'
 
-python rerank_score_cands_new.py -candfile="beam51fr_en" -oracle="both"
-#python modify_data.py -candfile="beam4fr_en"
+#python rerank_score_cands_new.py -candfile="rerank_outputs/post1explodedmtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9.json" -oracle="both"
+python modify_data.py -candfile="post1explodedmtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9"
 
