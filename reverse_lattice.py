@@ -2,6 +2,7 @@ from src.recom_search.model.beam_node_reverse import ReverseNode
 from lattice_cands import get_node, get_graph
 import os
 import pickle
+import pandas as pd
 
 def reverse_graph(graph):
     allnodes = {}
@@ -79,7 +80,22 @@ def reverse_save_graphs(path_output):
         print(len(restmp.keys())-2)
         print(TGT+pat)
 
+def reverse_df_graphs(inpnames):
+    data = pd.read_csv(inpnames+".csv")
+    if os.path.exists(inpnames+"reversed")==False:
+        os.mkdir(inpnames+"reversed")
+    ind = 0
+    for d in data['fname']:
+        curgraph = get_graph(d)
+        restmp = reverse_graph(curgraph)
+        assert len(restmp.keys())>0
+        filehandler = open(inpnames+"reversed/"+str(ind), 'wb') 
+        pickle.dump(restmp, filehandler)
+        ind+=1
+
 if __name__ == "__main__":
     # TODO set up logic to retrieve graph given filename
     # reverse_save_graphs("mtn1_fr-en_bfs_recom_1_-1_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9")
-    reverse_save_graphs("mtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.902_0.0_0.9")
+    #reverse_save_graphs("mtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.902_0.0_0.9")
+    reverse_df_graphs("german_fnames")
+    reverse_df_graphs("french_fnames")

@@ -180,7 +180,7 @@ print(ydata)
 # converge on this first
 #run_model_train_params(1e-5, 2, trainloader, model, mse)
 #run_model_train_params(1e-5, 10, trainloader, model, rank_easy)
-run_model_train_params(1e-5, 200, trainloader, model, rank_easy)
+run_model_train_params(1e-5, 200, trainloader, model, mse)
 #run_model_train_params(1e-5, 100, trainloader, model, rank_easy)
 
 #run_model_train_params(5e-5, 5, trainloader, model, rank_easy)

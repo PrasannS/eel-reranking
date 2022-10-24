@@ -295,6 +295,8 @@ dmypy.json
 /crit_err_data
 /processeddata
 /trainlogs
+/frtest_reversed
+/detest_reversed
 
 latposlabels.pt
 latposlabelsdone.pt
