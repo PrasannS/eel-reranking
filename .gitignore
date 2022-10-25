@@ -298,6 +298,8 @@ dmypy.json
 /frtest_reversed
 /detest_reversed
 
+frenchlatpreds
+germanlatpreds
 latposlabels.pt
 latposlabelsdone.pt
 tmapsdone.pickle
