@@ -1,16 +1,10 @@
-from src.recom_search.model.beam_node_reverse import ReverseNode
-from transformers import AutoTokenizer, AutoModel
-
 import flatten_lattice as fl
 import torch
 from encoding_utils import *
-import pickle
-import toy_helper as thelp
+
 
 import torch.nn as nn
-from transformers import AutoModel, AutoTokenizer, AutoConfig
-from latmask_bert_models import LatticeBertModel
-import json
+from transformers import AutoModel, AutoTokenizer
 
 
 device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
@@ -129,13 +123,6 @@ def causal_mask (pgraph, padd):
     start[padd:, padd:] = torch.tril(start[padd:, padd:])
     return start
 
-def get_allamasks():
-    attmasks = []
-    for i in range(len(posadds)):
-        if i%10==0:
-            print(i)
-        attmasks.append(causal_mask(processedgraphs[i], posadds[i]-1))
-    return attmasks
 
 # set scores computed for each token by the model
 def set_pgscores(pgraphs, scores):
@@ -240,6 +227,8 @@ def run_pipeline(graph, model):
     flattened = fl.flatten_lattice(graph)
     ppinput = prepend_input(flattened, graph['input'])
     flattened = ppinput[0]
+    covered = fl.get_cover_paths(flattened)
+
     posadd = ppinput[1]
     mask = causal_mask(flattened, posadd)
     sents, posids = create_inputs([flattened])
@@ -252,5 +241,5 @@ def run_pipeline(graph, model):
     print("SRC - "+graph['input'])
     print("PRED - "+best)
     print("REF - "+graph['ref'])
-    return best
+    return best, covered, flattened, prepared_pgraphs, mask, sents, posids, pred
     

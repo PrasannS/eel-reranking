@@ -1,5 +1,5 @@
 from src.recom_search.model.beam_node_reverse import ReverseNode
-from lattice_cands import get_node, get_graph
+from lattice_cands import get_node, get_graph, get_all_possible_candidates
 import os
 import pickle
 import pandas as pd
@@ -93,9 +93,26 @@ def reverse_df_graphs(inpnames):
         pickle.dump(restmp, filehandler)
         ind+=1
 
+def explode_df_graphs(inpnames):
+    data = pd.read_csv(inpnames+".csv")
+    if os.path.exists(inpnames+"exploded")==False:
+        os.mkdir(inpnames+"exploded")
+    ind = 0
+    for d in data['fname']:
+        acands = get_all_possible_candidates(d, False)
+        filehandler = open(inpnames+"exploded/"+str(ind), 'wb') 
+        pickle.dump(acands, filehandler)
+        print(ind)
+        ind+=1
+
 if __name__ == "__main__":
     # TODO set up logic to retrieve graph given filename
     # reverse_save_graphs("mtn1_fr-en_bfs_recom_1_-1_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9")
     #reverse_save_graphs("mtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.902_0.0_0.9")
-    reverse_df_graphs("german_fnames")
-    reverse_df_graphs("french_fnames")
+    #reverse_df_graphs("german_fnames")
+    #reverse_df_graphs("french_fnames")
+    print("starting french")
+    explode_df_graphs("french_fnames")
+    print("starting german")
+    explode_df_graphs("german_fnames")
+    

@@ -297,9 +297,13 @@ dmypy.json
 /trainlogs
 /frtest_reversed
 /detest_reversed
+/frenchtest_exploded
+/germantest_exploded
+/mlqe-pe
 
 frenchlatpreds
 germanlatpreds
+
 latposlabels.pt
 latposlabelsdone.pt
 tmapsdone.pickle
@@ -314,6 +318,7 @@ latreposlabels.pt
 *.txt
 *.log
 *.pkl
+*.out 
 
 cache/
 hfcache/

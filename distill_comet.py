@@ -71,14 +71,14 @@ class XLMCometEmbeds(nn.Module):
         return outputs
 
 # construct inputs from dataframe
-def get_test_inputs(inps, hyps):
+def get_test_inputs(inps, hyps, savedat=False):
     assert len(inps)==len(hyps)
     inpdf = pd.DataFrame()
     inpdf['inp'] = inps
     inpdf['hyp'] = hyps
     xinp = []
     maskinp = []
-    if exists("torchsaved/latxinp.pkl"):
+    if exists("torchsaved/latxinp.pkl") and savedat:
         with open("torchsaved/latxinp.pkl", "rb") as f:
             xinp = pickle.load(f)
         with open("torchsaved/latmaskinp.pkl", "rb") as f:
@@ -102,13 +102,12 @@ def get_test_inputs(inps, hyps):
         mask[lent:, lent:] = torch.tril(mask[lent:, lent:])
         xinp.append(toktmp)
         maskinp.append(mask)
-    with open("torchsaved/latxinp.pkl", "wb") as f:
-        pickle.dump(xinp,f )
-    with open("torchsaved/latmaskinp.pkl", "wb") as f:
-        pickle.dump(maskinp,f )
-    
-
-    
+    if savedat:
+        with open("torchsaved/latxinp.pkl", "wb") as f:
+            pickle.dump(xinp,f )
+        with open("torchsaved/latmaskinp.pkl", "wb") as f:
+            pickle.dump(maskinp,f )
+ 
     return xinp, maskinp
 
 class RegressionDataset(Dataset):
@@ -141,9 +140,9 @@ def collate_custom(datafull):
     
     return data, masdata
 
-def load_distill_model():
+def load_distill_model(mname="./torchsaved/maskedcont4.pt"):
     model = XLMCometRegressor(drop_rate=0.1)
-    model.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
+    model.load_state_dict(torch.load(mname))
     model.eval()
     return model
 

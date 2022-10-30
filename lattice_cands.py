@@ -2,6 +2,9 @@ import pickle
 import os 
 from transformers import AutoTokenizer
 import argparse
+import flatten_lattice as fl
+
+tokenizer = fl.bert_tok
 
 def load_save_data(fname):
     f = open(fname, 'rb')
@@ -116,10 +119,13 @@ nodeset = set()
 tot = 0
 # TODO, wait, does this just mean that recombination doesn't do anything
 # use candidates from this as a theoretical bound on what lattices can do
-def get_all_possible_candidates(fname):
+def get_all_possible_candidates(fname, needbase=True):
     global nodeset
     global tot 
-    graph = get_graph(BASE+fname)
+    if needbase:
+        graph = get_graph(BASE+fname)
+    else:
+        graph = get_graph(fname)
     scores =  []
     cands = []
     ref = graph.reference

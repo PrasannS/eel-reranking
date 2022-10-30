@@ -14,6 +14,7 @@ class ReverseNode():
             self.token_str = infodict['token_str']
         self.nextlist = []
         self.next_scores = []
+        self.prevs = []
         self.next_ids = []
         self.pos = -1
 

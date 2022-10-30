@@ -70,7 +70,6 @@ def greedy_flatten(tdicts, visited, node, pos, prev_cont, added_ids, branch_star
     end = (len(node.next_scores)==0)
     merge = end==False and node.nextlist[0].uid in visited
     if branched or merge or end:
-        #print(branched, " ", merge, " ", end)
         if len(prev_cont)>0:
             errorflag = False
             
