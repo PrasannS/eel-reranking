@@ -1,3 +1,4 @@
+from asyncio import new_event_loop
 import flatten_lattice as fl
 import torch
 from encoding_utils import *
@@ -5,7 +6,7 @@ from encoding_utils import *
 
 import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
-
+from new_flatten_lattice import get_dictlist
 
 device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
@@ -87,7 +88,7 @@ def prepend_input(pgraph, inp):
     inptoks = xlm_tok(inp).input_ids
     # add in the <s> token
     # we don't need the </s> token by how the mask works
-    inptoks.append(0)
+    # inptoks.append(0)
     posadd = len(inptoks)
     inpflat = []
     ind = 0
@@ -97,23 +98,25 @@ def prepend_input(pgraph, inp):
         if i<(len(inptoks)-1):
             nl.append(str(inptoks[i+1])+" "+str(ind+1))
         inpflat.append({
-            'token_idx':inp, 
+            'token_idx':inp,
             'pos':ind,
             'id': str(inp)+" "+str(ind),
-            'nexts':nl,
-            'score':0,
+            'nexts': nl,
+            'score': 1,
         })
         ind+=1
-    inpflat[-1]['nexts'].append(pgraph[0]['id'].split()[0]+" "+str(posadd))
+    inpflat[-1]['nexts'].append(pgraph[0]['id'])
     
     inpflat.extend(pgraph)
+    inpflat[posadd]['token_idx']=0
+    inpflat[posadd]['token_str']= "<s>"
     for i in range(posadd, len(inpflat)):
         extok = inpflat[i]
         extok['pos']+=posadd
-        extok['id']= str(extok['token_idx'])+" "+str(extok['pos'])
-        for j in range(len(extok['nexts'])):
-            newpos = int(extok['nexts'][j].split()[1])+posadd
-            extok['nexts'][j] = extok['nexts'][j].split()[0]+" "+str(newpos)
+        #extok['id']= str(extok['token_idx'])+" "+str(extok['pos'])
+        #for j in range(len(extok['nexts'])):
+        #    newpos = extok["pos"]
+        #    extok['nexts'][j] = extok['nexts'][j].split()[0]+" "+str(newpos)
     return inpflat, posadd
 
 def causal_mask (pgraph, padd):
@@ -139,22 +142,28 @@ def set_pgscores(pgraphs, scores):
 
 # topological sort the graphs, make sure that nodes that are next always come next in the list
 def topo_sort_pgraph(pgraph):
+    cp = [p for p in pgraph]
+    tmpgraph = {}
+    for c in cp:
+        tmpgraph[c['id']]=c
+    res = []
+    visited = []
     # reverse ordering
-    pgraph.reverse()
-    # for all tokens
-    i = 0
-    while i < min(len(pgraph), 500):
-        ns = pgraph[i]
-        # check if any tokens that come after actually should be before
-        for j in range(i, min(len(pgraph), 500)):
-            # if so, re-insert right before in list
-            if pgraph[j]['id'] in ns:
-                tmp = pgraph[j]
-                del pgraph[j]
-                pgraph.insert(i, tmp)
-                i+=1
-        i+=1
+    topo_sort_recurse(cp[0]['id'], res, [], tmpgraph)
+
+    res.reverse()
+    return res
         
+def topo_sort_recurse(curid, toplist, visited, graph):
+    if curid in visited:
+        return 
+    node = graph[curid]
+    visited.append(curid)
+    for nid in node['nexts']:
+        topo_sort_recurse(nid, toplist, visited, graph)
+    # once done, add to the beginnings
+    toplist.insert(0, node)
+
 def prepare_pgraphs(pgraphs, scores):
     res = []
     # make a deep copy of processed graphs
@@ -163,9 +172,10 @@ def prepare_pgraphs(pgraphs, scores):
     # set scores for stuff
     set_pgscores(res, scores)
     # do topological sorting
+    newres = []
     for r in res:
-        topo_sort_pgraph(r)
-    return res
+        newres.append(topo_sort_pgraph(r))
+    return newres
 
 # given a list of sub-scores (topological flattening of the graph), use dp to get the highest scoring path
 # idlist has the corresponding graph ids for 
@@ -224,10 +234,11 @@ def dp_pgraph(pgraph):
     return [pgraph[x]['token_idx'] for x in bestpath]
 
 def run_pipeline(graph, model):
-    flattened = fl.flatten_lattice(graph)
+    flatold = fl.flatten_lattice(graph)
+    flattened = get_dictlist(graph)
     ppinput = prepend_input(flattened, graph['input'])
     flattened = ppinput[0]
-    covered = fl.get_cover_paths(flattened)
+    # covered = fl.get_cover_paths(flattened)
 
     posadd = ppinput[1]
     mask = causal_mask(flattened, posadd)
@@ -241,5 +252,28 @@ def run_pipeline(graph, model):
     print("SRC - "+graph['input'])
     print("PRED - "+best)
     print("REF - "+graph['ref'])
-    return best, covered, flattened, prepared_pgraphs, mask, sents, posids, pred
+    return best #, flattened, prepared_pgraphs, mask, sents, posids, pred
+
+import pickle
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+# TODO remove debugging code
+base = "frtest_reversed/"
+def test_graph_ind(ind, basedir):
+    g = pickle.load(open(basedir+str(ind), 'rb'))
+    #if g['input'] in old['src']:
+    #    return None, None, None
+    #try:
+    return g['input'], g['ref'], run_pipeline(g, model)
+
+"""
+if __name__ == "__main__":
+    model = XLMCometEmbeds(drop_rate=0.1)
+    model.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
+    model.eval()
+    # torch.cuda.memory_allocated(device)
+    i, r, ppres = test_graph_ind(2, base)
+    print(i)
+    print(ppres)
+"""
+
     

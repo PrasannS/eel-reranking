@@ -7,7 +7,7 @@ def get_adjac_mat(pgraph):
     for node in pgraph:
         tmp = []
         for p in pgraph:
-            if str(p['token_idx'])+" "+str(p['pos']) in node['nexts']:
+            if str(p['id']) in node['nexts']:
                 tmp.append(1)
             else:
                 tmp.append(0)
