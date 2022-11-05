@@ -2,7 +2,7 @@ from asyncio import new_event_loop
 import flatten_lattice as fl
 import torch
 from encoding_utils import *
-
+from new_mask_utils import get_causal_mask
 
 import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
@@ -129,10 +129,10 @@ def causal_mask (pgraph, padd):
 
 # set scores computed for each token by the model
 def set_pgscores(pgraphs, scores):
-    #idlist = get_idlist(pgraph)
+
     for p in range(len(pgraphs)):
         pgraph = pgraphs[p]
-        for i in range(min(len(pgraph), 500)):
+        for i in range(min(len(pgraph),512)):
             pgraph[i]['score'] = scores[p][i]
             if pgraph[i]['token_idx']>0:
                 if pgraph[i]['score']==0:
@@ -177,12 +177,15 @@ def prepare_pgraphs(pgraphs, scores):
         newres.append(topo_sort_pgraph(r))
     return newres
 
+def default_scofunct (node):
+    return node['score']
+
 # given a list of sub-scores (topological flattening of the graph), use dp to get the highest scoring path
 # idlist has the corresponding graph ids for 
 # would need to do a sort on pgrapaps that makes sure that no next node is before in the linear ordering
 # reverse since we're using nexts
 # TODO simplify code to not need so many data structures
-def dp_best_path(pgraphs, graph):
+def dp_best_path(pgraphs, graph, sco_funct):
     bplist = []
     bsco_list =[]
     idlist = get_idlist(pgraphs)
@@ -200,20 +203,20 @@ def dp_best_path(pgraphs, graph):
                     maxnext = graph[n]
             except:
                 ""
-
+        cursco = sco_funct(cur)
         # add in scores / path from that prev
         if maxnext==None:
             bpath.append(i)
             bplist.append(bpath)
-            bsco_list.append(cur['score'])
+            bsco_list.append(cursco)
             # check if this is how things work in python
-            graph[cur['id']]['bestsco'] = cur['score']
+            graph[cur['id']]['bestsco'] = cursco
             graph[cur['id']]['plist'] = bpath
             continue
         bpath.extend(maxnext['plist']+[i])
         bplist.append(bpath)
-        bsco_list.append(cur['score']+mval)
-        graph[cur['id']]['bestsco'] = cur['score']+mval
+        bsco_list.append(cursco+mval)
+        graph[cur['id']]['bestsco'] = cursco+mval
         graph[cur['id']]['plist'] = bpath
         #print(bpath)
     return bplist[-1], bsco_list[-1]
@@ -221,59 +224,41 @@ def dp_best_path(pgraphs, graph):
 def get_idlist(pgraph):
     return [p['id'] for p in pgraph]
 
-def dp_pgraph(pgraph):
+def dp_pgraph(pgraph, scofunct):
     graph = {}
     for p in pgraph:
         # TODO check if scores are negative number compatible
         p['bestsco'] = 0
         p['plist'] = []
         graph[p['id']] = p
-    bestpath, bsco = dp_best_path(pgraph, graph)
+    bestpath, bsco = dp_best_path(pgraph, graph, scofunct)
     print(bsco)
     bestpath.reverse()
     return [pgraph[x]['token_idx'] for x in bestpath]
 
-def run_pipeline(graph, model):
-    flatold = fl.flatten_lattice(graph)
-    flattened = get_dictlist(graph)
+def run_pipeline(graph, model, scofunct, extra=False):
+    #flatold = fl.flatten_lattice(graph)
+    flattened, flnodes = get_dictlist(graph, True)
     ppinput = prepend_input(flattened, graph['input'])
     flattened = ppinput[0]
     # covered = fl.get_cover_paths(flattened)
 
     posadd = ppinput[1]
-    mask = causal_mask(flattened, posadd)
+    mask = get_causal_mask(flnodes, posadd)
     sents, posids = create_inputs([flattened])
     with torch.no_grad():
         pred = model(sents, posids, mask.unsqueeze(0).to(device))
     fls = [flattened]
     prepared_pgraphs = prepare_pgraphs(fls, pred[0])
-    bestpath = dp_pgraph(prepared_pgraphs[0])
+    bestpath = dp_pgraph(prepared_pgraphs[0], scofunct)
     best = xlm_tok.decode(bestpath)
     print("SRC - "+graph['input'])
     print("PRED - "+best)
     print("REF - "+graph['ref'])
-    return best #, flattened, prepared_pgraphs, mask, sents, posids, pred
+    # verbose return for debugging
+    if extra:
+        return best , flattened, prepared_pgraphs, mask, sents, posids, pred, posadd, flnodes
+    return best
 
-import pickle
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
-# TODO remove debugging code
-base = "frtest_reversed/"
-def test_graph_ind(ind, basedir):
-    g = pickle.load(open(basedir+str(ind), 'rb'))
-    #if g['input'] in old['src']:
-    #    return None, None, None
-    #try:
-    return g['input'], g['ref'], run_pipeline(g, model)
-
-"""
-if __name__ == "__main__":
-    model = XLMCometEmbeds(drop_rate=0.1)
-    model.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
-    model.eval()
-    # torch.cuda.memory_allocated(device)
-    i, r, ppres = test_graph_ind(2, base)
-    print(i)
-    print(ppres)
-"""
 
     

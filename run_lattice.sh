@@ -6,8 +6,8 @@
 #PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge rcb -device cuda:1 -avg_score 1.2
 #PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset en-de -beam_size 4 -task mt1n -min_len 5 -max_len 80 -ngram_suffix 4 -merge rcb -device cuda:1 -avg_score 0.9
 #PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 4 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge rcb -device cuda:1 -avg_score 0.903 -nexample 10000
-PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 2 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge rcb -device cuda:3 -avg_score 0.9 -nexample 500000
-PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset en-de -beam_size 2 -task mt1n -min_len 5 -max_len 80 -ngram_suffix 4 -merge rcb -device cuda: -avg_score 0.9 -nexample 500000
+PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset fr-en -beam_size 2 -task mtn1 -min_len 5 -max_len -1 -ngram_suffix 4 -merge rcb -device cuda:3 -avg_score 0.9 -nexample512000
+PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset en-de -beam_size 2 -task mt1n -min_len 5 -max_len 80 -ngram_suffix 4 -merge rcb -device cuda: -avg_score 0.9 -nexample512000
 
 
 #PYTHONPATH=./ python src/recom_search/scripts/run_eval.py -model bfs_recom -dfs_expand -dataset en-de -beam_size 1 -task mt1n -min_len 5 -max_len 80 -ngram_suffix 4 -merge rcb -device cuda:1 -avg_score 0.9 -nexample 300 

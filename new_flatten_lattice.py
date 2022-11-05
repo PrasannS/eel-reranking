@@ -134,6 +134,21 @@ def split_dl_node(node):
         node.token_str = detok.decode(node.detoks[0])
         return [node]
     res = []
+    if len(node.detoks)==0:
+        # special case with no token for some reason, TODO may need to examine
+        print("empty token")
+        for prev in node.prevs:
+            if node in prev.nextlist:
+                prev.nextlist.remove(node)
+            if node.uid in prev.next_ids:
+                prev.next_ids.remove(node.uid)
+            prev.nextlist.extend(node.nextlist)
+            prev.next_ids.extend(node.next_ids)
+        for nextn in node.nextlist:
+            if node in nextn.prevs:
+                nextn.prevs.remove(node)
+            nextn.prevs.extend(node.prevs)
+        return []
     # update previous of nodes
     for i in range(len(node.detoks)):
         n = node.detoks[i]
@@ -256,7 +271,7 @@ def consolidate_node(node, grph):
         throw_garbage(node, grph)
         
 # takes in input string
-def get_dictlist(grphinp):
+def get_dictlist(grphinp, addnodes=False):
     if type(grphinp)==str:
         gra = pickle.load(open(grphinp, 'rb'))
     else:
@@ -270,7 +285,12 @@ def get_dictlist(grphinp):
             'pos': f.pos, 
             'id': f.uid,
             'nexts': [fn.uid for fn in f.nextlist], 
-            'score': math.log(f.prob)
+            # TODO need to verify what this score actually is first, might already be nll
+            'prob': f.prob, 
+            #'score': math.log(f.prob), 
         })
+    if addnodes:
+        assert len(tdicts)==len(fllat)
+        return tdicts, fllat
     return tdicts
 

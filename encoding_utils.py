@@ -6,7 +6,7 @@ from flatten_lattice import bert_tok
 
 device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
-MAX_LEN = 500
+MAX_LEN =512
 
 def avg_nodes(sentences):
     zcnts = [500-list(sent).count(0) for sent in sentences]
@@ -47,7 +47,7 @@ def clean_empty(rarrs, pgraphs):
             break
     assert len(rarrs)==len(pgraphs)
             
-MAXLEN = 500
+MAXLEN =512
 # posids are the first posids to be set for each value
 def create_inputs(pgraphs):
     result_tok = []
@@ -92,7 +92,7 @@ def subword_mask_all (sents):
     return msk
 
 # make tags given input set and predicted labels
-# inpx.shape = (nex, 500); inpy.shape = (nex, 500, nlabls)
+# inpx.shape = (nex,512); inpy.shape = (nex,512, nlabls)
 # return (dict with list of label ids for each token)
 def dataset_make_tags(inpx, inpy):
     tokmap = {}

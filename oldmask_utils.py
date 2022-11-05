@@ -96,7 +96,7 @@ def connect_mat(pgraph):
     cmat =  (conm>0).float()
     # handle things to be able to take when really big input
     respad = None
-    MAX = 500
+    MAX =512
     # we're within 498
     if len(cmat) < MAX-1:
         # get the version with CLS and SEP
