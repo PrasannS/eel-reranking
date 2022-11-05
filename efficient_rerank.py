@@ -157,6 +157,9 @@ def topo_sort_pgraph(pgraph):
 def topo_sort_recurse(curid, toplist, visited, graph):
     if curid in visited:
         return 
+    # for stuff in truncated part of graph TODO
+    if curid not in graph.keys():
+        return
     node = graph[curid]
     visited.append(curid)
     for nid in node['nexts']:
@@ -236,6 +239,7 @@ def dp_pgraph(pgraph, scofunct):
     bestpath.reverse()
     return [pgraph[x]['token_idx'] for x in bestpath]
 
+MAX_TOKS = 512
 def run_pipeline(graph, model, scofunct, extra=False):
     #flatold = fl.flatten_lattice(graph)
     flattened, flnodes = get_dictlist(graph, True)
@@ -245,10 +249,12 @@ def run_pipeline(graph, model, scofunct, extra=False):
 
     posadd = ppinput[1]
     mask = get_causal_mask(flnodes, posadd)
-    sents, posids = create_inputs([flattened])
+    # make sure that we're only working with the tokens that fit into canvas
+    truncflat = flattened[:512]
+    sents, posids = create_inputs([truncflat])
     with torch.no_grad():
         pred = model(sents, posids, mask.unsqueeze(0).to(device))
-    fls = [flattened]
+    fls = [truncflat]
     prepared_pgraphs = prepare_pgraphs(fls, pred[0])
     bestpath = dp_pgraph(prepared_pgraphs[0], scofunct)
     best = xlm_tok.decode(bestpath)
@@ -259,6 +265,13 @@ def run_pipeline(graph, model, scofunct, extra=False):
     if extra:
         return best , flattened, prepared_pgraphs, mask, sents, posids, pred, posadd, flnodes
     return best
+
+if __name__=="main":
+    modtmp = XLMCometEmbeds(drop_rate=0.1)
+    modtmp.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
+    modtmp.eval()
+    base = "frtest_reversed/"
+
 
 
     
