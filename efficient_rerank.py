@@ -126,7 +126,138 @@ def causal_mask (pgraph, padd):
     start[padd:, padd:] = torch.tril(start[padd:, padd:])
     return start
 
+# topological sort the graphs, make sure that nodes that are next always come next in the list
+def topo_sort_nodes(pgraph):
+    cp = [p for p in pgraph]
+    tmpgraph = {}
+    for c in cp:
+        tmpgraph[c.uid]=c
+    res = []
+    visited = []
+    # reverse ordering
+    topo_recurse(cp[0].uid, res, [], tmpgraph)
+    # don't reverse anymore
+    # res.reverse()
+    return res
+        
+def topo_recurse(curid, toplist, visited, graph):
+    if curid in visited:
+        return 
+    # for stuff in truncated part of graph TODO
+    if curid not in graph.keys():
+        return
+    node = graph[curid]
+    visited.append(curid)
+    for nid in [n.uid for n in node.nextlist]:
+        topo_recurse(nid, toplist, visited, graph)
+    # once done, add to the beginnings
+    toplist.insert(0, node)
 
+# take in list of truncnodes, sort for dynamic programming
+def prepare_nodes(truncnodes, scores, padd):
+    ind = 0
+    for p in range(len(truncnodes)):
+        # get rid of this later if we decide to have multiple canvi
+        assert len(truncnodes[p])<=512
+        for i in range(min(len(truncnodes[p]),512)):
+            # get score after offset (we only get for decoded stuff)
+            # TODO do some kind of assert
+            truncnodes[p][i].score = scores[p][i+padd]
+    
+    result = []
+    for trunc in truncnodes:
+        result.append(topo_sort_nodes(trunc))
+        
+    for trunc in result:
+        dpos = 0
+        for node in trunc:
+            node.dppos = dpos
+            dpos+=1
+            
+    return result
+
+MINPROP = 0.5
+MINDEF = -10000
+def dynamic_path(prepnodes, sco_funct, posapp):
+    
+    bplist = [None]*len(prepnodes)
+    bscolist = [MINDEF]*len(prepnodes)
+    endings = []
+    # go through topologically sorted list of nodes, update best path for each
+    for prep in prepnodes:
+        if bplist[prep.dppos]==None:
+            bplist[prep.dppos] = []
+        if len(prep.prevs)>0:
+            mval = MINDEF
+            mprev = None
+            for p in prep.prevs:
+                if p.dppos>=0 and bscolist[p.dppos]>mval:
+                    mval = bscolist[p.dppos]
+                    mprev = p
+            if mprev is not None:
+                # use from previous
+                bplist[prep.dppos].extend(bplist[mprev.dppos])
+                bscolist[prep.dppos] = bscolist[mprev.dppos] + sco_funct(prep)
+                #print(bscolist[prep.dppos])
+        # TODO look into endings that are happening due to excessive trunction
+        if len(prep.nextlist)==0:
+            endings.append(prep.dppos)
+        if bscolist[prep.dppos]==MINDEF:
+            bscolist[prep.dppos]= sco_funct(prep)
+        bplist[prep.dppos].append(prep)
+        #bscolist[prep.dppos] += prep.score
+    
+    print(endings)
+    print([float(bscolist[e]) for e in endings])
+    bestpath = []
+    bestsco = MINDEF
+    for e in endings:
+        # make sure we hit minimum length proportional to input
+        if len(bplist[e])>(MINPROP)*posapp:
+            if bscolist[e]>bestsco:
+                bestsco = bscolist[e]
+                bestpath = bplist[e]
+    return bestpath, bplist, bscolist
+
+MAX_TOKS = 512
+def run_pipeline(graph, model, scofunct, extra=False):
+    #flatold = fl.flatten_lattice(graph)
+    flattened, flnodes = get_dictlist(graph, True)
+    ppinput = prepend_input(flattened, graph['input'])
+    flattened = ppinput[0]
+    # covered = fl.get_cover_paths(flattened)
+
+    posadd = ppinput[1]
+    mask = get_causal_mask(flnodes, posadd)
+    # make sure that we're only working with the tokens that fit into canvas
+    truncflat = flattened[:512]
+    sents, posids = create_inputs([truncflat])
+    with torch.no_grad():
+        pred = model(sents, posids, mask.unsqueeze(0).to(device))
+    # fls = [truncflat]
+    #prepared_pgraphs = prepare_pgraphs(fls, pred[0])
+    #bestpath = dp_pgraph(prepared_pgraphs[0], scofunct)
+    #best = xlm_tok.decode(bestpath)
+    pnodes = prepare_nodes([flnodes[:512-(posadd)]], pred[0], posadd)
+    dpath, beplist, besclist = dynamic_path(pnodes[0], scofunct, posadd)
+    best = xlm_tok.decode([dp.token_idx for dp in dpath])
+    print("SRC - "+graph['input'])
+    print("PRED - "+best)
+    print("REF - "+graph['ref'])
+    # verbose return for debugging
+    if extra:
+        return best , flattened, pnodes, mask, sents, posids, pred, posadd, flnodes, dpath, beplist, besclist
+    return best
+
+if __name__=="main":
+    modtmp = XLMCometEmbeds(drop_rate=0.1)
+    modtmp.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
+    modtmp.eval()
+    base = "frtest_reversed/"
+
+
+
+    
 # set scores computed for each token by the model
 def set_pgscores(pgraphs, scores):
 
@@ -238,40 +369,3 @@ def dp_pgraph(pgraph, scofunct):
     print(bsco)
     bestpath.reverse()
     return [pgraph[x]['token_idx'] for x in bestpath]
-
-MAX_TOKS = 512
-def run_pipeline(graph, model, scofunct, extra=False):
-    #flatold = fl.flatten_lattice(graph)
-    flattened, flnodes = get_dictlist(graph, True)
-    ppinput = prepend_input(flattened, graph['input'])
-    flattened = ppinput[0]
-    # covered = fl.get_cover_paths(flattened)
-
-    posadd = ppinput[1]
-    mask = get_causal_mask(flnodes, posadd)
-    # make sure that we're only working with the tokens that fit into canvas
-    truncflat = flattened[:512]
-    sents, posids = create_inputs([truncflat])
-    with torch.no_grad():
-        pred = model(sents, posids, mask.unsqueeze(0).to(device))
-    fls = [truncflat]
-    prepared_pgraphs = prepare_pgraphs(fls, pred[0])
-    bestpath = dp_pgraph(prepared_pgraphs[0], scofunct)
-    best = xlm_tok.decode(bestpath)
-    print("SRC - "+graph['input'])
-    print("PRED - "+best)
-    print("REF - "+graph['ref'])
-    # verbose return for debugging
-    if extra:
-        return best , flattened, prepared_pgraphs, mask, sents, posids, pred, posadd, flnodes
-    return best
-
-if __name__=="main":
-    modtmp = XLMCometEmbeds(drop_rate=0.1)
-    modtmp.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
-    modtmp.eval()
-    base = "frtest_reversed/"
-
-
-
-    

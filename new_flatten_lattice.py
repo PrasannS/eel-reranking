@@ -21,6 +21,8 @@ class DLReverseNode():
         self.detoks = []
         self.pos = -1
         self.canvpos = 1000
+        self.dppos = -1
+        self.score = 0
         # TODO may be something weird happening
         if hasattr(oldnode, "canvpos"):
             self.prevs = oldnode.prevs
