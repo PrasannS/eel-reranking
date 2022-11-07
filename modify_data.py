@@ -81,6 +81,7 @@ def get_mbart_nll(cand, ind, inptok, labtok, mod, dev):
     #print(labels.attention_mask)
     return output.loss
 
+
 setup = "de"
 def rescore_cands(c_list, dset):
     device = "cuda:1" if torch.cuda.is_available() else "cpu"

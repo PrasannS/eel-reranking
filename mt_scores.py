@@ -26,6 +26,21 @@ def get_mbart_nll(cand, ind, inptok, labtok, mod, dev):
     #print(labels.attention_mask)
     return output.loss
 
+def get_mbart_nllsco(inpu, outpu, inptok, labtok, mod, dev):
+    
+    inp = inpu
+    out = outpu
+
+    inputs = inptok(inp, return_tensors="pt").to(dev)
+    with labtok.as_target_tokenizer():
+        labels = labtok(out, return_tensors="pt").to(dev)
+
+    # forward pass
+    output = mod(**inputs, labels=labels.input_ids)
+    #print(type(labels))
+    #print(labels.attention_mask)
+    return output.loss
+
 def rescore_cands(dset, hyplist, srclist):
     device = "cuda:1" if torch.cuda.is_available() else "cpu"
     if "de" in dset:
@@ -40,19 +55,20 @@ def rescore_cands(dset, hyplist, srclist):
     labtok = AutoTokenizer.from_pretrained(mname, src_lang=src_l, tgt_lang=tgt_l)
     mod = AutoModelForSeq2SeqLM.from_pretrained(mname)
     mod.to(device)
+    mod.eval()
     print("rescoring candidates")
     i = 0
     result = []
     for i in range(0, len(hyplist)):
         if i%500==0:
             print(i)
-        try:
-            result.append(float(get_mbart_nll(srclist[i], hyplist[i], inptok, labtok, mod, device)))
-        except:
-            result.append(0)
-            continue
+        with torch.no_grad():
+            result.append(float(get_mbart_nllsco(srclist[i], hyplist[i], inptok, labtok, mod, device)))
+    
+        #result.append(0)
+            
         #print(i)
-        i+=1
+        #i+=1
     del inptok
     del labtok
     del mod
