@@ -271,16 +271,50 @@ def consolidate_node(node, grph):
         node.prevs.remove(g)
     if len(node.prevs)==0:
         throw_garbage(node, grph)
+
+def extend_unique(lis1, lis2):
+    for l in lis2:
+        if l not in lis1:
+            lis1.append(l)
         
+def update_removed(oldnode, newnode):
+    for p in oldnode.prevs:
+        if oldnode in p.nextlist:
+            p.nextlist.remove(oldnode)
+        if oldnode.uid in p.next_ids:
+            p.next_ids.remove(oldnode.uid)
+        p.nextlist.append(newnode)
+        p.next_ids.append(newnode.uid)
+
+    for n in oldnode.nextlist:
+        if oldnode in n.prevs:
+            n.prevs.remove(oldnode)
+        n.prevs.append(newnode)
 # takes in input string
-def get_dictlist(grphinp, addnodes=False):
+def get_dictlist(grphinp, addnodes=False, compress=True):
     if type(grphinp)==str:
         gra = pickle.load(open(grphinp, 'rb'))
     else:
         gra = grphinp
     fllat = tokenize_flat_lattice(gra)
+    flres = []
+    if compress:
+        tmpgraph = {}
+        for tmpnode in fllat:
+            tmpid = str(tmpnode.token_idx)+str(tmpnode.pos)
+            if tmpid in tmpgraph.keys():
+                # this is a duplicate node, compress with old one
+                extend_unique(tmpgraph[tmpid].nextlist, tmpnode.nextlist)
+                extend_unique(tmpgraph[tmpid].next_ids, tmpnode.next_ids)
+                extend_unique(tmpgraph[tmpid].prevs, tmpnode.prevs)
+                update_removed(tmpnode, tmpgraph[tmpid])
+            else:
+                flres.append(tmpnode)
+                tmpgraph[tmpid] = tmpnode
+    else:
+        flres = fllat
     tdicts = []
-    for f in fllat:
+    for f in flres:
         tdicts.append({
             'token_idx': f.token_idx,
             "token_str": f.token_str,
@@ -292,7 +326,7 @@ def get_dictlist(grphinp, addnodes=False):
             #'score': math.log(f.prob), 
         })
     if addnodes:
-        assert len(tdicts)==len(fllat)
-        return tdicts, fllat
+        assert len(tdicts)==len(flres)
+        return tdicts, flres
     return tdicts
 

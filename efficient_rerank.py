@@ -200,15 +200,20 @@ def dynamic_path(prepnodes, sco_funct, posapp):
                 bscolist[prep.dppos] = bscolist[mprev.dppos] + sco_funct(prep)
                 #print(bscolist[prep.dppos])
         # TODO look into endings that are happening due to excessive trunction
-        if len(prep.nextlist)==0:
+        ncnt = 0
+        # TODO more thorough check
+        for prn in prep.nextlist:
+            if prn in prepnodes:
+                ncnt+=1
+        if ncnt==0:
             endings.append(prep.dppos)
         if bscolist[prep.dppos]==MINDEF:
             bscolist[prep.dppos]= sco_funct(prep)
         bplist[prep.dppos].append(prep)
         #bscolist[prep.dppos] += prep.score
     
-    print(endings)
-    print([float(bscolist[e]) for e in endings])
+    print("maxend ,", max([len(bplist[e]) for e in endings ]))
+    #print([float(bscolist[e]) for e in endings])
     bestpath = []
     bestsco = MINDEF
     for e in endings:
@@ -217,12 +222,19 @@ def dynamic_path(prepnodes, sco_funct, posapp):
             if bscolist[e]>bestsco:
                 bestsco = bscolist[e]
                 bestpath = bplist[e]
+    if len(bestpath)==0:
+        lenlist = [len(bplist[e]) for e in endings ]
+        bind = lenlist.index(max(lenlist))
+        bestsco = bscolist[endings[bind]]
+        bestpath = bplist[endings[bind]]
+        print("suboptimal, ", [tnode.token_str for tnode in bestpath])
     return bestpath, bplist, bscolist
 
 MAX_TOKS = 512
 def run_pipeline(graph, model, scofunct, extra=False):
     #flatold = fl.flatten_lattice(graph)
     flattened, flnodes = get_dictlist(graph, True)
+    totnodes = len(flnodes)
     ppinput = prepend_input(flattened, graph['input'])
     flattened = ppinput[0]
     # covered = fl.get_cover_paths(flattened)
@@ -246,7 +258,7 @@ def run_pipeline(graph, model, scofunct, extra=False):
     print("REF - "+graph['ref'])
     # verbose return for debugging
     if extra:
-        return best , flattened, pnodes, mask, sents, posids, pred, posadd, flnodes, dpath, beplist, besclist
+        return best , flattened, pnodes, mask, sents, posids, pred, posadd, flnodes, dpath, beplist, besclist, totnodes
     return best
 
 if __name__=="main":

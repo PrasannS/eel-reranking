@@ -1,15 +1,24 @@
 import torch
 
 # get adjacency from flat canvas of tokens, with previous tokens
-def adj_mat(flat_canv, mlen):
+def adj_mat(flat_canv, mlen, single_cont=True):
     mask = torch.zeros((mlen, mlen))
     # have a cutoff after the calculated limit to circumvent extra computation
     # and potential bugs
     for row in range(mlen):
-        for p in flat_canv[row].prevs:
-            # TODO verify correctness of this
-            if p.canvpos<mlen:
-                mask[row][p.canvpos] = 1
+        if single_cont:
+            # use earliest available context only
+            minpos = mlen+1
+            for p in flat_canv[row].prevs:
+                minpos = min(p.canvpos, minpos)
+            if minpos<mlen+1:
+                mask[row][minpos] = 1
+        else:
+            # normal, just use all prevs that are valid
+            for p in flat_canv[row].prevs:
+                # TODO verify correctness of this
+                if p.canvpos<mlen:
+                    mask[row][p.canvpos] = 1
     return mask
 
 # ensure that token canvas has the right values for mask creation
