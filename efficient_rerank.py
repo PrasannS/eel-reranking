@@ -8,7 +8,7 @@ import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
 from new_flatten_lattice import get_dictlist
 
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
 from mask_utils import *
 from encoding_utils import *

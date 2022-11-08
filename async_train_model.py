@@ -2,7 +2,7 @@ from transformers import AutoModel, AutoTokenizer
 import torch
 import torch.nn as nn
 import csv
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 import sys
 import random
 import pandas as pd
@@ -143,28 +143,22 @@ model = XLMCometRegressor(drop_rate=0.1)
 
 print("model loaded")
 
+# mask that can be used for rank losses to happen in O(N)
 vmask = (torch.triu(torch.ones(32, 32))*2-torch.ones(32, 32))*-1
 vmask = vmask.to(device)
 mse = nn.MSELoss()
+
+# margin based rank loss, TODO sanity check again to make sure it's fine
 def rank_loss(preds, golds):
     totloss = 0
-    for i in range(1, len(preds)):
+    lim = int(len(preds))
+    for i in range(1, lim):
         # for margin
         margin = (golds - torch.roll(golds, i))*vmask[i]
         diff = ((preds - torch.roll(preds, i))-margin)*vmask[i]
         diff[diff<0] = 0
         totloss+=torch.sum(diff)
-    return totloss #+ mse(preds, golds)
-
-def rank_easy(preds, golds):
-    totloss = 0
-    for i in range(1, len(preds)):
-        # for margin
-        #margin = (golds - torch.roll(golds, i))*vmask[i]
-        diff = (preds - torch.roll(preds, i))*vmask[i]
-        diff[diff<0] = 0
-        totloss+=torch.sum(diff)
-    return totloss #+ mse(preds, golds)
+    return totloss + mse(preds, golds)
 
 def run_model_train_params(learn_r, epochs, loader, mod, loss):
     optimizer = AdamW(mod.parameters(),

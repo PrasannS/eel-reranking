@@ -9,7 +9,7 @@ from comet import download_model, load_from_checkpoint
 from distill_comet import load_distill_model, run_distill_comet
 csv.field_size_limit(sys.maxsize)
 
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
 def get_mbart_nll(cand, ind, inptok, labtok, mod, dev):
     
@@ -42,7 +42,7 @@ def get_mbart_nllsco(inpu, outpu, inptok, labtok, mod, dev):
     return output.loss
 
 def rescore_cands(dset, hyplist, srclist):
-    device = "cuda:1" if torch.cuda.is_available() else "cpu"
+    device = "cuda:2" if torch.cuda.is_available() else "cpu"
     if "de" in dset:
         mname = "facebook/mbart-large-50-one-to-many-mmt"
         src_l = "en_XX"

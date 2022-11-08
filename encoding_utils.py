@@ -4,7 +4,7 @@ from scipy.spatial.distance import cosine
 from more_itertools import locate
 from flatten_lattice import bert_tok
 
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
 MAX_LEN =512
 
