@@ -21,6 +21,19 @@ def load_cands(fname):
             data.append(json.loads(line))
     return data
 
+def cands_df(fname):
+    cands = load_cands("candoutputs/"+fname)
+    result = []
+    for c in cands:
+        for i in range(len(c['scores'])):
+            result.append({
+                "adhoc":c['scores'][i],
+                "ahyp":c['cands'][i],
+                "src": c['inp'],
+                "ref": c["ref"], 
+            })
+    return pd.DataFrame(result)
+    
 # extract sized batches from each lattice, populate df with data
 def lset_tocominp(lset, batchsize):
     res = []

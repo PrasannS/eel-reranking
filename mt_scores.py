@@ -2,6 +2,7 @@ import csv
 import pandas as pd
 import random
 from os.path import exists
+import time
 import sys
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
@@ -59,6 +60,7 @@ def rescore_cands(dset, hyplist, srclist):
     print("rescoring candidates")
     i = 0
     result = []
+    starttime = time.time()
     for i in range(0, len(hyplist)):
         if i%500==0:
             print(i)
@@ -69,6 +71,8 @@ def rescore_cands(dset, hyplist, srclist):
             
         #print(i)
         #i+=1
+    totaltime = round((time.time() - starttime), 2)
+    print("TOTAL TIME ", totaltime)
     del inptok
     del labtok
     del mod
@@ -103,11 +107,15 @@ def get_comet_scores(hyps, srcs, refs, comet):
 # sco is the score funct, dset is either model name or 
 # is the language 
 def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
+    totaltime = -1
     # comet qe
     if sco=='cqe':
         cometqe_path = download_model(cometqe_model, cometqe_dir)
         model = load_from_checkpoint(cometqe_path).to(device)
+        starttime = time.time()
         scos = get_cometqe_scores(hyps, srcs, model)
+        totaltime = round((time.time() - starttime), 2)
+        print("TOOK TIME ", totaltime)
         scos = scos[0]
         del model 
         del cometqe_path
@@ -115,7 +123,10 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
     if sco=='comet':
         comet_path = download_model(cometmodel, "./cometmodel")
         comet = load_from_checkpoint(comet_path).to(device)
+        starttime = time.time()
         scos = get_comet_scores(hyps, srcs, refs, comet)
+        totaltime = round((time.time() - starttime), 2)
+        print("TOOK TIME ", totaltime)
         scos = scos[0]
         del comet
         del comet_path
@@ -125,7 +136,10 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
     if sco=='cqeut':
         assert len(dset)>0
         utmod = load_distill_model(dset)
+        starttime = time.time()
         scos = run_distill_comet(srcs, hyps, utmod)
+        totaltime = round((time.time() - starttime), 2)
+        print("TOOK TIME ", totaltime)
         del utmod
         return scos
     # should never reach this

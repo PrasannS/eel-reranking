@@ -156,7 +156,7 @@ if __name__ == "__main__":
     trainloader = DataLoader(RegressionDataset(xtrain, ytrain, paddtrains), batch_size=32, shuffle=False, collate_fn=collate_custom)
     # load in model
     model = XLMCometRegressor(drop_rate=0.1)
-    model.load_state_dict(torch.load("./torchsaved/demsedone.pt"))
+    model.load_state_dict(torch.load("./torchsaved/derlcausalfine19.pt"))
     # print("model loaded")
     # keep non-causal, train MSE, then see if we can get rank loss working
     #MODSTR = "demsecausalcoarse"
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     # MODSTR = "demsecausalfine"
     # run_model_train_params(1e-5, 5, trainloader, model, mse)
     MODSTR = "derlcausalfine"
-    run_model_train_params(1e-5, 20, trainloader, model, rank_loss)
+    run_model_train_params(1e-5, 30, trainloader, model, rank_loss)
 
 
 
