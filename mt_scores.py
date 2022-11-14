@@ -4,10 +4,11 @@ import random
 from os.path import exists
 import time
 import sys
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification
 import torch
 from comet import download_model, load_from_checkpoint
 from distill_comet import load_distill_model, run_distill_comet
+from bleurt import score
 csv.field_size_limit(sys.maxsize)
 
 device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
@@ -95,6 +96,23 @@ def get_cometqe_scores(hyps, srcs, commodel):
     torch.cuda.empty_cache()
     return outputs
 
+def get_bleurt_scores(hyps, refs, bsize):
+    tokenizer = AutoTokenizer.from_pretrained("Elron/bleurt-base-512")
+    model = AutoModelForSequenceClassification.from_pretrained("Elron/bleurt-base-512").to(device)
+    model.eval()
+    num_batches = len(hyps)/bsize
+    allsco = []
+    with torch.no_grad():
+        for i in range(int(num_batches)):
+            inputs = tokenizer(list(refs[i*bsize:(i+1)*bsize]), list(hyps[i*bsize:(i+1)*bsize]), return_tensors='pt', padding=True, truncation=True).to(device)
+            scores = model(**inputs)[0].squeeze()
+            allsco.extend(scores)
+            torch.cuda.empty_cache()
+            if i%100==0:
+                print(i)
+
+    return [float(a) for a in allsco]
+
 def get_comet_scores(hyps, srcs, refs, comet):
     cometqe_input = [{"src": src, "mt": mt, "ref":ref} for src, mt, ref in zip(srcs, hyps, refs)]
     # sentence-level and corpus-level COMET
@@ -136,6 +154,18 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
     if sco=='cqeut':
         assert len(dset)>0
         utmod = load_distill_model(dset)
+        starttime = time.time()
+        scos = run_distill_comet(srcs, hyps, utmod)
+        totaltime = round((time.time() - starttime), 2)
+        print("TOOK TIME ", totaltime)
+        del utmod
+        return scos
+    if sco=="bleurt":
+        return get_bleurt_scores(hyps, refs, 64)
+    # model will be passed in 
+    if sco == "custom":
+        #assert len(dset)>0
+        utmod = dset
         starttime = time.time()
         scos = run_distill_comet(srcs, hyps, utmod)
         totaltime = round((time.time() - starttime), 2)

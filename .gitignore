@@ -300,6 +300,7 @@ dmypy.json
 /frenchtest_exploded
 /germantest_exploded
 /mlqe-pe
+/bleurt
 
 frenchlatpreds
 germanlatpreds

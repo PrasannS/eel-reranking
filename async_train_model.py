@@ -87,12 +87,12 @@ def collate_custom(datafull):
     masdata = torch.stack(masdata).to(device)
     return data, torch.tensor(labels).to(device), masdata
 
-subset = 32*100
-xdata = xdata[:subset]
-ydata = ydata[:subset]
-mdata = mdata[:subset]
+#subset = 32*100
+#xdata = xdata[:subset]
+#ydata = ydata[:subset]
+#mdata = mdata[:subset]
 
-trainloader = DataLoader(RegressionDataset(xdata, ydata, mdata), batch_size=32, shuffle=False, collate_fn=collate_custom)
+#trainloader = DataLoader(RegressionDataset(xdata, ydata, mdata), batch_size=32, shuffle=False, collate_fn=collate_custom)
 
 from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.nn.utils.clip_grad import clip_grad_norm_
@@ -138,7 +138,7 @@ def train(model, optimizer, scheduler, loss_function, epochs,
             ""
     return model
 
-model = XLMCometRegressor(drop_rate=0.1)
+#model = XLMCometRegressor(drop_rate=0.1)
 #model.load_state_dict(torch.load("./torchsaved/germanlat9.pt"))
 
 print("model loaded")
@@ -174,7 +174,7 @@ print(ydata)
 # converge on this first
 #run_model_train_params(1e-5, 2, trainloader, model, mse)
 #run_model_train_params(1e-5, 10, trainloader, model, rank_easy)
-run_model_train_params(1e-5, 200, trainloader, model, mse)
+#run_model_train_params(1e-5, 200, trainloader, model, mse)
 #run_model_train_params(1e-5, 100, trainloader, model, rank_easy)
 
 #run_model_train_params(5e-5, 5, trainloader, model, rank_easy)

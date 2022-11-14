@@ -2,7 +2,6 @@
 #python baseline_cands.py -method="beam" -num_hyps=10 -dataset='en_de' -num_examples=100 -max_len=80
 #python baseline_cands.py -method="beam" -num_hyps=4 -dataset='en_de' -num_examples=100 -max_len=80
 
-
 #python baseline_cands.py -method="beam" -num_hyps=1 -dataset='fr_en' -num_examples=100 -max_len=70
 #python rerank_score_cands_new.py -candfile="beam1fr_en" -oracle="both"
 
@@ -25,5 +24,5 @@
 #python baseline_cands.py -method="nucleus" -num_hyps=10 -dataset='en_de'
 
 #python rerank_score_cands_new.py -candfile="rerank_outputs/post1explodedmtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9.json" -oracle="both"
-python modify_data.py -candfile="post1explodedmtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9"
+#python modify_data.py -candfile="post1explodedmtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9"
 

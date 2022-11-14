@@ -9,11 +9,12 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from process_traindata import create_sortedbatch_data
+import random
 device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
 csv.field_size_limit(sys.maxsize)
 
-class XLMCometRegressor(nn.Module):
+class XLMCometRegressorAvg(nn.Module):
     
     def __init__(self, drop_rate=0.1):
         # TODO should we be freezing layers?
@@ -86,7 +87,8 @@ def collate_custom(datafull):
 def train(model, optimizer, scheduler, loss_function, epochs,       
           train_dataloader, device, clip_value=2):
     print("Total steps :", epochs*len(train_dataloader))
-    
+    losssum = 0
+    losstot = 0
     # Run Training Loop
     for epoch in range(epochs):
         print("EPOCH ", epoch)
@@ -104,10 +106,16 @@ def train(model, optimizer, scheduler, loss_function, epochs,
             clip_grad_norm_(model.parameters(), clip_value)
             optimizer.step()
             scheduler.step()
+            losssum+=loss
+            losstot+=1
             # log loss
             if step%LOGSTEPS==0:
-                print(loss)
-        torch.save(model.state_dict(), "torchsaved/"+MODSTR+str(epoch)+".pt")  
+                torch.cuda.empty_cache()
+                print(losssum/losstot)
+                losssum=0
+                losstot=0
+        if epoch%1==0:
+            torch.save(model.state_dict(), "torchsaved/"+MODSTR+str(epoch)+".pt")  
     return model
 
 # margin rank-based loss, ensures separate candidates 
@@ -137,36 +145,84 @@ def run_model_train_params(learn_r, epochs, loader, mod, loss):
     train(mod, optimizer, scheduler, loss, epochs, 
                   loader, device, clip_value=2)
 
-if __name__ == "__main__":
+# shuffles up batches, but makes sure that stuff stays within size 32 clumps
+def randomize_batches(xd, yd, pd):
+    assert len(xd)==len(yd)
+    indlist = list(range(int(len(xd)/32)))
+    random.shuffle(indlist)
+    xres, yres, pres = [], [], []
+    for i in indlist:
+        xres.extend(xd[i*32:(i+1)*32])
+        yres.extend(yd[i*32:(i+1)*32])
+        pres.extend(pd[i*32:(i+1)*32])
+    assert len(xd) == len(xres)
+    assert len(xres) == len(yres)
+    assert len(pres) == len(yres)
+    return xres, yres, pres
 
+
+
+if __name__ == "__main__":
+    TEST = True
     # TODO argumentize this stuff for applicability to other datasets
     xlm_tok = AutoTokenizer.from_pretrained('xlm-roberta-base')
-    CAUSAL=True
-    TSPLIT = 0.7
+    CAUSAL=False
+    TSPLIT = 0.2
     LOGSTEPS = 500
     RK_DIV = 1
-    LPAIR = "en_de"
-    SCORE = "cqe"
+    # take up to 8 batches from each lattice, might help make training more stable?
+    EX_SAMPLES = 8
+    LPAIR = "fr_en"
+    SCORE = "bleurt"
     print("loading data")
     # load in data, split up
-    xdata, ydata, padds = create_sortedbatch_data(LPAIR, SCORE, xlm_tok, 32)
+    xdata, ydata, padds = create_sortedbatch_data(LPAIR, SCORE, xlm_tok, 32, EX_SAMPLES)
     print("data loaded")
     newlen = int((len(xdata)*TSPLIT)/32)*32
     xtrain, ytrain, paddtrains = xdata[:newlen], ydata[:newlen], padds[:newlen]
+    xtrain, ytrain, paddtrains = randomize_batches(xtrain, ytrain, paddtrains)
+
     trainloader = DataLoader(RegressionDataset(xtrain, ytrain, paddtrains), batch_size=32, shuffle=False, collate_fn=collate_custom)
     # load in model
-    model = XLMCometRegressor(drop_rate=0.1)
-    model.load_state_dict(torch.load("./torchsaved/derlcausalfine19.pt"))
+    model = XLMCometRegressorAvg(drop_rate=0.1)
+    # model.load_state_dict(torch.load("./torchsaved/frenbleurtfine5.pt"))
+    model.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
     # print("model loaded")
     # keep non-causal, train MSE, then see if we can get rank loss working
     #MODSTR = "demsecausalcoarse"
     #run_model_train_params(1e-4, 5, trainloader, model, mse)
-    # MODSTR = "demsecausalfine"
-    # run_model_train_params(1e-5, 5, trainloader, model, mse)
-    MODSTR = "derlcausalfine"
-    run_model_train_params(1e-5, 30, trainloader, model, rank_loss)
+    #MODSTR = "frenbleurtcourse"
+    #run_model_train_params(1e-4, 5, trainloader, model, mse)
+    #MODSTR = "flbleurtcoarse"
+    RK_DIV = 16
+    #run_model_train_params(5e-5, 10, trainloader, model, rank_loss)
+    MODSTR = "flbleurtfine"
+
+    run_model_train_params(1e-5, 51, trainloader, model, rank_loss)
 
 
-
-
-
+# Old XLMComet model without average normalization
+class XLMCometRegressor(nn.Module):
+    
+    def __init__(self, drop_rate=0.1):
+        # TODO should we be freezing layers?
+        super().__init__()
+        
+        self.xlmroberta = AutoModel.from_pretrained('xlm-roberta-base')
+        # Num labels 1 should just indicate regression (?)
+        self.regressor = nn.Sequential(
+            nn.Dropout(drop_rate),
+            nn.Linear(self.xlmroberta.config.hidden_size, 1), 
+        )
+        self.to(device)
+        
+    def forward(self, input_ids, attention_masks):
+        # don't finetune xlmroberta model
+        #with torch.no_grad():
+        word_rep, sentence_rep = self.xlmroberta(input_ids, attention_mask=attention_masks, encoder_attention_mask=attention_masks, return_dict=False)
+        # use the first <s> token as a CLS token, TODO experiment with using the sum of 
+        # ensure padding not factored in
+        word_rep = word_rep*(input_ids>0).unsqueeze(-1)
+        outputs = self.regressor(torch.sum(word_rep, 1))
+        #print("Shape: ", outputs.shape)
+        return outputs
