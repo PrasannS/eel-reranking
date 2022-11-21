@@ -5,7 +5,7 @@ from encoding_utils import *
 from new_mask_utils import get_causal_mask
 
 import torch.nn as nn
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoModel
 from new_flatten_lattice import get_dictlist
 
 device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
@@ -178,7 +178,7 @@ def prepare_nodes(truncnodes, scores, padd):
 
 MINPROP = 0.5
 MINDEF = -10000
-def dynamic_path(prepnodes, sco_funct, posapp):
+def dynamic_path(prepnodes, sco_funct, posapp, usednodes):
     
     bplist = [None]*len(prepnodes)
     bscolist = [MINDEF]*len(prepnodes)
@@ -197,7 +197,7 @@ def dynamic_path(prepnodes, sco_funct, posapp):
             if mprev is not None:
                 # use from previous
                 bplist[prep.dppos].extend(bplist[mprev.dppos])
-                bscolist[prep.dppos] = bscolist[mprev.dppos] + sco_funct(prep)
+                bscolist[prep.dppos] = bscolist[mprev.dppos] + sco_funct(prep, usednodes)
                 #print(bscolist[prep.dppos])
         # TODO look into endings that are happening due to excessive trunction
         ncnt = 0
@@ -208,7 +208,7 @@ def dynamic_path(prepnodes, sco_funct, posapp):
         if ncnt==0:
             endings.append(prep.dppos)
         if bscolist[prep.dppos]==MINDEF:
-            bscolist[prep.dppos]= sco_funct(prep)
+            bscolist[prep.dppos]= sco_funct(prep, usednodes)
         bplist[prep.dppos].append(prep)
         #bscolist[prep.dppos] += prep.score
     
@@ -223,7 +223,7 @@ def dynamic_path(prepnodes, sco_funct, posapp):
                 bestsco = bscolist[e]
                 bestpath = bplist[e]
     if len(bestpath)==0:
-        lenlist = [len(bplist[e]) for e in endings ]
+        lenlist = [len(bplist[e]) for e in endings]
         bind = lenlist.index(max(lenlist))
         bestsco = bscolist[endings[bind]]
         bestpath = bplist[endings[bind]]
@@ -231,7 +231,7 @@ def dynamic_path(prepnodes, sco_funct, posapp):
     return bestpath, bplist, bscolist
 
 MAX_TOKS = 512
-def run_pipeline(graph, model, scofunct, extra=False):
+def run_pipeline(graph, model, scofunct, extra=False, numruns=1, verbose=False):
     #flatold = fl.flatten_lattice(graph)
     flattened, flnodes = get_dictlist(graph, True)
     totnodes = len(flnodes)
@@ -250,26 +250,31 @@ def run_pipeline(graph, model, scofunct, extra=False):
     #prepared_pgraphs = prepare_pgraphs(fls, pred[0])
     #bestpath = dp_pgraph(prepared_pgraphs[0], scofunct)
     #best = xlm_tok.decode(bestpath)
-    pnodes = prepare_nodes([flnodes[:512-(posadd)]], pred[0], posadd)
-    dpath, beplist, besclist = dynamic_path(pnodes[0], scofunct, posadd)
-    best = xlm_tok.decode([dp.token_idx for dp in dpath])
-    print("SRC - "+graph['input'])
-    print("PRED - "+best)
-    print("REF - "+graph['ref'])
+    blist = []
+    usednodes = []
+    for decround in range(numruns):
+        pnodes = prepare_nodes([flnodes[:512-(posadd)]], pred[0], posadd)
+        dpath, beplist, besclist = dynamic_path(pnodes[0], scofunct, posadd, usednodes)
+        usednodes.extend([dp.token_idx for dp in dpath])
+        blist.append(xlm_tok.decode([dp.token_idx for dp in dpath]))
+    if verbose:
+        print("SRC - "+graph['input'])
+        print("PRED - "+blist[0])
+        print("REF - "+graph['ref'])
     # verbose return for debugging
     if extra:
-        return best , flattened, pnodes, mask, sents, posids, pred, posadd, flnodes, dpath, beplist, besclist, totnodes
-    return best
+        return blist , flattened, pnodes, mask, sents, posids, pred, posadd, flnodes, dpath, beplist, besclist, totnodes
+    return blist
 
+"""
 if __name__=="main":
     modtmp = XLMCometEmbeds(drop_rate=0.1)
     modtmp.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
     modtmp.eval()
     base = "frtest_reversed/"
+"""
 
 
-
-    
 # set scores computed for each token by the model
 def set_pgscores(pgraphs, scores):
 

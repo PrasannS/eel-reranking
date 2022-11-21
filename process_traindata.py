@@ -1,9 +1,12 @@
 import json
 import random
 from mt_scores import get_scores_auto
+import warnings
+warnings.filterwarnings('ignore')
 import pandas as pd
 from os.path import exists
 import pickle
+
 
 #random.seed(1)
 
@@ -94,10 +97,38 @@ exploded_dirs = {
     "en_deb50":"./candoutputs/testbeam50en_de.jsonl"
 }
 
+# let's say we want to get 4 batches from 32 (including ref, which is gold)
+def get_bin_sample(subdf):
+    #print(subdf)
+    bins = pd.qcut(subdf['score'], 4, precision=1)
+    ref = subdf.iloc[-1]
+    subdf['qbin'] = bins
+    ubins = bins.unique()
+    res = []
+    for i in range(0, len(ubins)-1):
+        tmp = subdf[subdf['qbin']==ubins[i]].sample(replace=True)
+        res.append(tmp.iloc[-1])
+    res.append(ref)
+    return pd.DataFrame(res).drop(columns=['Unnamed: 0'])
+
+def convert_bin_sample(fulldf, exsamps):
+    assert len(fulldf)%32==0
+    
+    print(len(fulldf)/32)
+    newdf = pd.DataFrame()
+    fullres = []
+    for i in range(int(len(fulldf)/32)):
+        for j in range(exsamps):
+            fullres.append(get_bin_sample(fulldf.iloc[i*32: (i+1)*32]))
+        if i%500==0:
+            print(i)
+    return pd.concat(fullres, axis=0)
+    
 # create dataset for given language, score data with appropriate metric
-def create_sortedbatch_data(lpair, scorer, tok, bsize=32, exsamps=2, isTrain=True):
+def create_sortedbatch_data(lpair, scorer, tok, bsize=32, exsamps=4, isTrain=True):
     lcands = load_cands(exploded_dirs[lpair])
-    cand_df = lset_tocominp(lcands, bsize, exsamps)
+    # set initial sample size to 32, TODO maybe 64 if we need more data
+    cand_df = lset_tocominp(lcands, 32, 1)
     bdir = "torchsaved/"+scorer+str(lpair)+"ex"+str(exsamps)+"train"
     # ensure that we're valid, load in old data if needed
     assert scorer=='cqe' or scorer=='comet' or scorer=='bleurt'
@@ -108,20 +139,21 @@ def create_sortedbatch_data(lpair, scorer, tok, bsize=32, exsamps=2, isTrain=Tru
             return pickle.load(file)
     
     if exists(bdir+".csv"):
-        cand_df = pd.read_csv(bdir+".csv", index_col=0)
+        ncand_df = pd.read_csv(bdir+".csv", index_col=0)
     else:
         # rescore data to get labels
         cand_df["score"] = get_scores_auto(cand_df['hyp'], cand_df['src'], cand_df['ref'], scorer, "")
-        cand_df.to_csv(bdir+".csv")
-    
+        cand_df = cand_df.sort_values(['ref', "score"]).reset_index().drop(columns=['index'])
+        cand_df = cand_df[cand_df["src"].str.contains("&#")==False]
+        cand_df = cand_df[cand_df['src'].str.len()>40]
+        cand_df = cand_df[cand_df['ref'].str.len()>40]
+        ncand_df = convert_bin_sample(cand_df, exsamps)
+        ncand_df.to_csv(bdir+".csv")    
     # process data / sort, save again 
-    cand_df = cand_df.sort_values(['ref', "score"]).reset_index().drop(columns=['index'])
-    cand_df = cand_df[cand_df["src"].str.contains("&#")==False]
-    cand_df = cand_df[cand_df['src'].str.len()>40]
-    cand_df = cand_df[cand_df['ref'].str.len()>40]
-    cand_df.to_csv(bdir+".csv")
-    print("We have this many candidates: ", len(cand_df))
-    tinps = tokenize_inputs(cand_df, tok)
+    print("TODO SANITY CHECK DATA FOR EACH NEW SETTING")
+
+    print("We have this many candidates: ", len(ncand_df))
+    tinps = tokenize_inputs(ncand_df, tok)
     with open(bdir+".pkl", "wb") as file:
         pickle.dump(tinps, file)
     return tinps

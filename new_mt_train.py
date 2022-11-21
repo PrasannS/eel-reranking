@@ -108,19 +108,21 @@ def train(model, optimizer, scheduler, loss_function, epochs,
             scheduler.step()
             losssum+=loss
             losstot+=1
+            #print("epoch done: ", losssum/losstot)
             # log loss
             if step%LOGSTEPS==0:
-                torch.cuda.empty_cache()
+                #torch.cuda.empty_cache()
                 print(losssum/losstot)
                 losssum=0
                 losstot=0
-        if epoch%1==0:
+        
+        if epoch%5==0 and CHECKPOINTS:
             torch.save(model.state_dict(), "torchsaved/"+MODSTR+str(epoch)+".pt")  
     return model
 
 # margin rank-based loss, ensures separate candidates 
 # are correctly distant from eachother
-vmask = (torch.triu(torch.ones(32, 32))*2-torch.ones(32, 32))*-1
+vmask = (torch.triu(torch.ones(4, 4))*2-torch.ones(4, 4))*-1
 vmask = vmask.to(device)
 mse = nn.MSELoss()
 
@@ -145,16 +147,16 @@ def run_model_train_params(learn_r, epochs, loader, mod, loss):
     train(mod, optimizer, scheduler, loss, epochs, 
                   loader, device, clip_value=2)
 
-# shuffles up batches, but makes sure that stuff stays within size 32 clumps
+# shuffles up batches, but makes sure that stuff stays within size 4 clumps
 def randomize_batches(xd, yd, pd):
     assert len(xd)==len(yd)
-    indlist = list(range(int(len(xd)/32)))
+    indlist = list(range(int(len(xd)/4)))
     random.shuffle(indlist)
     xres, yres, pres = [], [], []
     for i in indlist:
-        xres.extend(xd[i*32:(i+1)*32])
-        yres.extend(yd[i*32:(i+1)*32])
-        pres.extend(pd[i*32:(i+1)*32])
+        xres.extend(xd[i*4:(i+1)*4])
+        yres.extend(yd[i*4:(i+1)*4])
+        pres.extend(pd[i*4:(i+1)*4])
     assert len(xd) == len(xres)
     assert len(xres) == len(yres)
     assert len(pres) == len(yres)
@@ -166,27 +168,27 @@ if __name__ == "__main__":
     TEST = True
     # TODO argumentize this stuff for applicability to other datasets
     xlm_tok = AutoTokenizer.from_pretrained('xlm-roberta-base')
-    CAUSAL=False
-    TSPLIT = 0.2
+    CAUSAL=True
+    TSPLIT = 0.7
     LOGSTEPS = 500
     RK_DIV = 1
-    # take up to 8 batches from each lattice, might help make training more stable?
+    # take up to 4 batches from each lattice, might help make training more stable?
     EX_SAMPLES = 8
+    CHECKPOINTS = False
     LPAIR = "fr_en"
     SCORE = "bleurt"
     print("loading data")
     # load in data, split up
-    xdata, ydata, padds = create_sortedbatch_data(LPAIR, SCORE, xlm_tok, 32, EX_SAMPLES)
+    xdata, ydata, padds = create_sortedbatch_data(LPAIR, SCORE, xlm_tok, 4, EX_SAMPLES)
     print("data loaded")
-    newlen = int((len(xdata)*TSPLIT)/32)*32
+    newlen = int((len(xdata)*TSPLIT)/4)*4
     xtrain, ytrain, paddtrains = xdata[:newlen], ydata[:newlen], padds[:newlen]
     xtrain, ytrain, paddtrains = randomize_batches(xtrain, ytrain, paddtrains)
-
-    trainloader = DataLoader(RegressionDataset(xtrain, ytrain, paddtrains), batch_size=32, shuffle=False, collate_fn=collate_custom)
+    # TODO change these back
+    trainloader = DataLoader(RegressionDataset(xtrain, ytrain, paddtrains), batch_size=16, shuffle=True, collate_fn=collate_custom)
     # load in model
     model = XLMCometRegressorAvg(drop_rate=0.1)
-    # model.load_state_dict(torch.load("./torchsaved/frenbleurtfine5.pt"))
-    model.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
+    # model.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
     # print("model loaded")
     # keep non-causal, train MSE, then see if we can get rank loss working
     #MODSTR = "demsecausalcoarse"
@@ -194,12 +196,12 @@ if __name__ == "__main__":
     #MODSTR = "frenbleurtcourse"
     #run_model_train_params(1e-4, 5, trainloader, model, mse)
     #MODSTR = "flbleurtcoarse"
-    RK_DIV = 16
+    RK_DIV = 1
     #run_model_train_params(5e-5, 10, trainloader, model, rank_loss)
-    MODSTR = "flbleurtfine"
-
-    run_model_train_params(1e-5, 51, trainloader, model, rank_loss)
-
+    MODSTR = "flbleurtbigbatchmse"
+    #run_model_train_params(1e-4, 6, trainloader, model, rank_loss)
+    run_model_train_params(1e-4, 11, trainloader, model, mse)
+    torch.save(model.state_dict(), "torchsaved/"+MODSTR+"done"+".pt")  
 
 # Old XLMComet model without average normalization
 class XLMCometRegressor(nn.Module):

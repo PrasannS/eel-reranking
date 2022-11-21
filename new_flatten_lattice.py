@@ -14,20 +14,23 @@ class DLReverseNode():
         self.prob = oldnode.prob
         self.token_idx = oldnode.token_idx
         self.token_str = oldnode.token_str
-        self.nextlist = oldnode.nextlist
-        self.next_scores = oldnode.next_scores
-        self.next_ids = oldnode.next_ids
+        # TODO made stuff deep copies, was there bad logic there?
+        self.nextlist = [n for n in oldnode.nextlist]
+        self.next_scores = [n for n in oldnode.next_scores]
+        self.next_ids = [n for n in oldnode.next_ids]
         self.prevs = []
         self.detoks = []
         self.pos = -1
         self.canvpos = 1000
         self.dppos = -1
         self.score = 0
+        # 0 unvisited, 1 in progress, 2 is visited
+        self.visitval = 0
         # TODO may be something weird happening
         if hasattr(oldnode, "canvpos"):
-            self.prevs = oldnode.prevs
+            self.prevs = [p for p in oldnode.prevs]
             self.pos = oldnode.pos
-            self.detoks = oldnode.detoks
+            self.detoks = [d for d in oldnode.detoks]
             self.canvpos = oldnode.canvpos
         
     def __str__(self):
@@ -67,12 +70,14 @@ def greedy_traverse(gr, fun, norev=True):
     visited = []
     while len(queue)>0:
         cur = queue.pop()
+        cur.visitval = 1
         fun(cur, gr)
         order = np.argsort([n.prob for n in cur.nextlist])
         # highest prob gets popped off first
         for o in order:
             if cur.uid not in visited:
                 queue.append(cur.nextlist[o])
+        cur.visitval = 2
         visited.append(cur.uid)
                 
 # make so graph has word-only nodes, check tokenization at different node boundaries
@@ -90,22 +95,6 @@ def combine_nodes(gr):
     for r in rmlist:
         del dblgrph[r]
     return dblgrph
-
-# do this on every node greedily to get flattened lattice canvas
-def add_to_flat(node, grph):
-    global flat
-    if node.canvpos<1000:
-        return
-    flat.append(node)
-    # get detokenization
-    detok_tmp = detok(node.token_str).input_ids[1:-1]
-    # update pos on first greedy hit
-    if len(node.prevs)==0:
-        node.pos = -1 + len(detok_tmp)
-    if node.pos==-1:
-        node.pos = max([n.pos for n in node.prevs])+len(detok_tmp)
-    node.detoks = detok_tmp
-    node.canvpos = len(flat)-2+ len(detok_tmp)
     
 flat = []
 def get_flat_lattice(gr):
@@ -128,6 +117,139 @@ def get_flat_lattice(gr):
     # print("Greedy traversal - ", len(flat))
     cp = [f for f in flat]
     return cp
+
+
+flat = []
+def get_flat_lattice(gr):
+    global flat
+    flat = []
+    wordgraph = combine_nodes(gr)
+    # clear out prevs
+    for gk in wordgraph.keys():
+        if gk=="input" or gk== "ref" or gk== "rootid":
+            continue
+        wordgraph[gk].prevs = []
+    # reset prevs
+    for gk in wordgraph.keys():
+        if gk=="input" or gk== "ref" or gk== "rootid":
+            continue
+        for n in wordgraph[gk].nextlist:
+            n.prevs.append(wordgraph[gk])
+    greedy_traverse(wordgraph, add_to_flat)
+    cp = [f for f in flat]
+    return cp
+
+current_flat = []
+allflats = []
+def get_derecomb_lattice(gr):
+    global current_flat
+    global allflats
+    global flat
+    current_flat = []
+    allflats = []
+    flat = []
+    # TODO compression at the beginning can cut down node count probably
+    wordgraph = combine_nodes(gr)
+    # clear out prevs
+    for gk in wordgraph.keys():
+        if gk=="input" or gk== "ref" or gk== "rootid":
+            continue
+        wordgraph[gk].prevs = []
+    # reset prevs
+    for gk in wordgraph.keys():
+        if gk=="input" or gk== "ref" or gk== "rootid":
+            continue
+        for n in wordgraph[gk].nextlist:
+            n.prevs.append(wordgraph[gk])
+        
+    greedy_traverse(wordgraph, add_derecomb)
+    # print("Greedy traversal - ", len(flat))
+    af = []
+    for flattmp in allflats:
+        af.append([f for f in flattmp])
+    # return a copy of the whole flat thing
+    return af
+
+# Description of algorithm for de-recomb + flatten
+#   - Decode greedily
+#   - Whenever we hit a node w recomb
+#       - Make a new node for each prev, ensure only 1 prev link / node
+#       - This will push to the end in O(final number of nodes), not sure if that's good
+#   - Keep track of space left in canvas (update after each ending)
+#       - Also store nodes not added yet
+#   - At end time, if enough space, then just extend canvas (clear stored nodes)
+#       - Otherwise, track back (we ensure each only has 1 path back w/ above algo)
+#       - Get canonical context / add into new canv, continue algo from there
+# TODO make a general method for handling node manipulation or smth, to avoid bugs
+def add_derecomb(node, grph):
+    global current_flat
+    global allflats
+    global flat
+    add_to_flat(node, grph)
+    # we have recomb, by algo we can assume that this is the first time hitting node
+    if len(node.prevs)>1:
+        check = 0
+        # will the last node just be the one that led to current?
+        pkeep = []
+        for prev in node.prevs:
+            # this should only happen once
+            if prev.visitval==2:
+                pkeep.append(prev)
+                continue 
+            # make copy node, connect / disconnect as necessary
+            tmpnode = DLReverseNode(node)
+            tmpnode.uid = tmpnode.uid+prev.uid
+            # only 1 prev
+            tmpnode.prevs = [prev]
+            # add the forward connection
+            for n in node.nextlist:
+                n.prevs.append(tmpnode)
+            # ensure that backward connection is corrected
+            if node in prev.nextlist:
+                prev.nextlist.remove(node)
+            if node.uid in prev.next_ids:
+                prev.next_ids.remove(node.uid)
+            prev.nextlist.append(tmpnode)
+            prev.next_ids.append(tmpnode.uid)
+            # TODO not sure if this is needed
+            grph[tmpnode.uid] = tmpnode
+            check+=1
+        node.prevs = pkeep
+        # TODO come back and fix this
+        # assert len(pkeep)==1
+
+    # check if we can add into full lattice or not
+    if len(node.nextlist)==0:
+        # TODO transfer limit based on src length
+        if len(flat)+len(current_flat) > CANVLIM:
+            allflats.append(current_flat)
+            # track back to get the path leading to current node
+            current_flat = [f for f in flat]
+            while len(current_flat[0].prevs)>0:
+                assert len(current_flat[0].prevs)==1
+                current_flat.insert(0, current_flat[0].prevs[0])   
+        else:
+            # we fit into the canvas, can just add in
+            current_flat.extend(flat)
+            flat = []
+
+
+
+# do this on every node greedily to get flattened lattice canvas
+def add_to_flat(node, grph):
+    global flat
+    if node.canvpos<1000:
+        return
+    flat.append(node)
+    # get detokenization
+    detok_tmp = detok(node.token_str).input_ids[1:-1]
+    # update pos on first greedy hit
+    if len(node.prevs)==0:
+        node.pos = -1 + len(detok_tmp)
+    if node.pos==-1:
+        node.pos = max([n.pos for n in node.prevs])+len(detok_tmp)
+    node.detoks = detok_tmp
+    node.canvpos = len(flat) - 2 + len(detok_tmp)
 
 # take a word node, convert it back to tokenized nodes
 def split_dl_node(node):
@@ -185,7 +307,7 @@ def split_dl_node(node):
         
 def tokenize_flat_lattice(gr):
     # get rid of first token, usually en_XX for french
-    print("original nodes - ", len(gr.keys()))
+    #print("original nodes - ", len(gr.keys()))
     tmplist = gr['root'].nextlist[0].nextlist
     tmpids = gr['root'].nextlist[0].next_ids
     gr['root'].nextlist = tmplist
@@ -196,7 +318,7 @@ def tokenize_flat_lattice(gr):
 
     for f in flatlat:
         res.extend(split_dl_node(f))
-    print("final detokd - ", len(res))
+    #print("final detokd - ", len(res))
     return res
     # we need to go through and convert this into lattices compatible 
     # with the format further into the pipeline, need to tokenize again with BERT
@@ -260,12 +382,6 @@ def consolidate_node(node, grph):
             # prev now garbage, delete it
             if len(prev.nextlist)==0:
                 throw_garbage(prev, grph, True)
-            """
-            if comb=="China’":
-                print("nexts after", len(tmp.nextlist))
-                print(tmp.uid)
-                print(tmp.nextlist[0].prevs[1].uid)
-            """
             
     for g in goneprevs:
         node.prevs.remove(g)
@@ -290,6 +406,7 @@ def update_removed(oldnode, newnode):
         if oldnode in n.prevs:
             n.prevs.remove(oldnode)
         n.prevs.append(newnode)
+
 # takes in input string
 def get_dictlist(grphinp, addnodes=False, compress=True):
     if type(grphinp)==str:
@@ -330,3 +447,46 @@ def get_dictlist(grphinp, addnodes=False, compress=True):
         return tdicts, flres
     return tdicts
 
+import pickle
+def test_flatten(ind, basedir):
+    g = pickle.load(open(basedir+str(ind), 'rb'))
+    #if g['input'] in old['src']:
+    #    return None, None, None
+    #try:
+    return get_dictlist(g, True)
+
+# Description of algorithm for de-recomb + flatten
+#   - Decode greedily
+#   - Whenever we hit a node w recomb
+#       - Make a new node for each prev, ensure only 1 prev link / node
+#       - This will push to the end in O(final number of nodes), not sure if that's good
+#   - Keep track of space left in canvas (update after each ending)
+#       - Also store nodes not added yet
+#   - At end time, if enough space, then just extend canvas (clear stored nodes)
+#       - Otherwise, track back (we ensure each only has 1 path back w/ above algo)
+#       - Get canonical context / add into new canv, continue algo from there
+# test code 
+
+if __name__ == "__main__":
+    g = pickle.load(open(base+str(0), 'rb'))
+    CANVLIM = 400
+    
+    aflats = get_derecomb_lattice(g)
+    # TODO what if a new decoding has a new leadup path? Need to fill in missing stuff...
+    print(len(aflats))
+    
+def construct_toy():
+    sents = ["I am nice today", "He is nice today"]
+    toks = toker(sents).input_ids
+    nodes = [[], []]
+    # TODO make sure lengths are the same
+    for i in range(len(toks)):
+        for j in range(len(toks[0])):
+            nodes[i].append(ReverseNode(None, {
+                'uid':toker.decode(toks[i][j]),
+                'prob':,
+                'token_idx':,
+                'token_str':
+            }))
+
+# TODO construct a toy test case with recomb

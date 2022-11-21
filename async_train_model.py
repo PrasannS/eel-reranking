@@ -8,7 +8,7 @@ import random
 import pandas as pd
 from rerank_score_cands_new import load_cands
 import numpy as np
-from comet import download_model, load_from_checkpoint
+from COMET.comet import download_model, load_from_checkpoint
 import pickle
 from sklearn.utils import shuffle
 #from distill_comet import XLMCometRegressor
