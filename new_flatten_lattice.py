@@ -70,14 +70,14 @@ def greedy_traverse(gr, fun, norev=True):
     visited = []
     while len(queue)>0:
         cur = queue.pop()
-        cur.visitval = 1
         fun(cur, gr)
         order = np.argsort([n.prob for n in cur.nextlist])
         # highest prob gets popped off first
         for o in order:
             if cur.uid not in visited:
                 queue.append(cur.nextlist[o])
-        cur.visitval = 2
+        if fun is not consolidate_node:
+            cur.visitval = 2
         visited.append(cur.uid)
                 
 # make so graph has word-only nodes, check tokenization at different node boundaries
@@ -163,6 +163,9 @@ def get_derecomb_lattice(gr):
             n.prevs.append(wordgraph[gk])
         
     greedy_traverse(wordgraph, add_derecomb)
+    # get the last canvas, unless perfect fit
+    if len(current_flat)>0:
+        allflats.append(current_flat)
     # print("Greedy traversal - ", len(flat))
     af = []
     for flattmp in allflats:
@@ -192,7 +195,7 @@ def add_derecomb(node, grph):
         # will the last node just be the one that led to current?
         pkeep = []
         for prev in node.prevs:
-            # this should only happen once
+            # this zhould only happen once
             if prev.visitval==2:
                 pkeep.append(prev)
                 continue 
@@ -201,6 +204,7 @@ def add_derecomb(node, grph):
             tmpnode.uid = tmpnode.uid+prev.uid
             # only 1 prev
             tmpnode.prevs = [prev]
+            tmpnode.canvpos = 1000
             # add the forward connection
             for n in node.nextlist:
                 n.prevs.append(tmpnode)
@@ -223,17 +227,16 @@ def add_derecomb(node, grph):
         # TODO transfer limit based on src length
         if len(flat)+len(current_flat) > CANVLIM:
             allflats.append(current_flat)
+            while len(flat[0].prevs)>0:
+                assert len(flat[0].prevs)==1
+                flat.insert(0, flat[0].prevs[0])   
             # track back to get the path leading to current node
             current_flat = [f for f in flat]
-            while len(current_flat[0].prevs)>0:
-                assert len(current_flat[0].prevs)==1
-                current_flat.insert(0, current_flat[0].prevs[0])   
+            flat = []
         else:
             # we fit into the canvas, can just add in
             current_flat.extend(flat)
             flat = []
-
-
 
 # do this on every node greedily to get flattened lattice canvas
 def add_to_flat(node, grph):
@@ -467,26 +470,52 @@ def test_flatten(ind, basedir):
 #       - Get canonical context / add into new canv, continue algo from there
 # test code 
 
+
+    
+def construct_toy_recomb():
+    sents = ["I am nice today", "He is nice today"]
+    toks = toker(sents).input_ids
+    nodes = [[], []]
+    # TODO make sure lengths are the same
+    grphtmp = {}
+    for j in range(len(toks[0])):
+        nodes[0].append(ReverseNode(None, {
+            'uid':str(toks[0][j]),
+            'prob':1,
+            'token_idx':toks[0][j],
+            'token_str':toker.decode(toks[0][j])
+        }))
+        if toks[1][j] == toks[0][j]:
+            nodes[1].append(nodes[0][-1])
+        else:
+            nodes[1].append(ReverseNode(None, {
+                'uid':str(toks[1][j]),
+                'prob':1,
+                'token_idx':toks[1][j],
+                'token_str':toker.decode(toks[1][j])
+            }))
+        grphtmp[nodes[0][-1].uid] = nodes[0][-1]
+        grphtmp[nodes[1][-1].uid] = nodes[1][-1]
+    for i in range(len(toks)):
+        for j in range(len(toks[0])-1):
+            if nodes[i][j+1].uid not in nodes[i][j].next_ids:
+                nodes[i][j].nextlist.append(nodes[i][j+1])
+                nodes[i][j].next_ids.append(nodes[i][j+1].uid)
+                nodes[i][j].next_scores.append(.5)
+        nodes[i][len(toks[0])-1].nextlist = []
+        nodes[i][len(toks[0])-1].next_ids = []
+        nodes[i][len(toks[0])-1].next_scores = []
+    grphtmp['root'] = nodes[0][0]
+    return grphtmp
+
+# TODO construct a toy test case with recomb
 if __name__ == "__main__":
     g = pickle.load(open(base+str(0), 'rb'))
+    #g = construct_toy_recomb()
     CANVLIM = 400
     
     aflats = get_derecomb_lattice(g)
     # TODO what if a new decoding has a new leadup path? Need to fill in missing stuff...
     print(len(aflats))
-    
-def construct_toy():
-    sents = ["I am nice today", "He is nice today"]
-    toks = toker(sents).input_ids
-    nodes = [[], []]
-    # TODO make sure lengths are the same
-    for i in range(len(toks)):
-        for j in range(len(toks[0])):
-            nodes[i].append(ReverseNode(None, {
-                'uid':toker.decode(toks[i][j]),
-                'prob':,
-                'token_idx':,
-                'token_str':
-            }))
 
-# TODO construct a toy test case with recomb
+# TODO maybe do something about duplicate nexts / prevs
