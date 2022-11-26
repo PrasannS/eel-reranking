@@ -8,6 +8,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForSeque
 import torch
 from comet import download_model, load_from_checkpoint
 from distill_comet import load_distill_model, run_distill_comet
+from COMET.comet.models.regression.referenceless import ReferencelessRegression
 from bleurt import score
 csv.field_size_limit(sys.maxsize)
 
@@ -137,6 +138,17 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
         scos = scos[0]
         del model 
         del cometqe_path
+        return scos
+    if sco=="dupcqe":
+        reflessmod = ReferencelessRegression()
+        reflessmod.load_from_checkpoint("COMET/lightning_logs/version_14/checkpoints/epoch=7-step=170000.ckpt").to(device)
+        reflessmod.eval()
+        starttime = time.time()
+        scos = get_cometqe_scores(hyps, srcs, reflessmod)
+        totaltime = round((time.time() - starttime), 2)
+        print("TOOK TIME ", totaltime)
+        scos = scos[0]
+        del reflessmod 
         return scos
     if sco=='comet':
         comet_path = download_model(cometmodel, "./cometmodel")

@@ -511,7 +511,6 @@ def construct_toy_recomb():
 # TODO construct a toy test case with recomb
 if __name__ == "__main__":
     g = pickle.load(open(base+str(0), 'rb'))
-    #g = construct_toy_recomb()
     CANVLIM = 400
     
     aflats = get_derecomb_lattice(g)
