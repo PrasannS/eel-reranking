@@ -1,7 +1,4 @@
 import csv
-import pandas as pd
-import random
-from os.path import exists
 import time
 import sys
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification
@@ -16,7 +13,7 @@ csv.field_size_limit(sys.maxsize)
 from COMET.comet.models.regression.referenceless import ReferencelessRegression
 from COMET.comet.models import load_from_checkpoint as lfc
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 def get_mbart_nll(cand, ind, inptok, labtok, mod, dev):
     
@@ -49,11 +46,15 @@ def get_mbart_nllsco(inpu, outpu, inptok, labtok, mod, dev):
     return output.loss
 
 def rescore_cands(dset, hyplist, srclist):
-    device = "cuda:2" if torch.cuda.is_available() else "cpu"
+    device = "cuda:1" if torch.cuda.is_available() else "cpu"
     if "de" in dset:
         mname = "facebook/mbart-large-50-one-to-many-mmt"
         src_l = "en_XX"
         tgt_l = "de_DE"
+    elif "ru" in dset:
+        mname = "facebook/mbart-large-50-one-to-many-mmt"
+        src_l = "en_XX"
+        tgt_l = "ru_RU"
     else:
         mname = "facebook/mbart-large-50-many-to-one-mmt"
         src_l = "fr_XX"
@@ -127,8 +128,13 @@ def get_comet_scores(hyps, srcs, refs, comet):
     torch.cuda.empty_cache()
     return outputs
 
+DSET_CHKS = {
+    "copcqe":"/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_38/checkpoints/epoch=3-step=140000.ckpt",
+    "dupcqe":"/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_43/checkpoints/epoch=3-step=140000.ckpt",
+    "utnoun":"/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_44/checkpoints/epoch=9-step=40000.ckpt"
+}
 # sco is the score funct, dset is either model name or 
-# is the language 
+# is the language (can be style as well in certain cases)
 def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
     totaltime = -1
     # comet qe
@@ -145,21 +151,12 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
         del model 
         del cometqe_path
         return scos
-    if sco=="copcqe":
-        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_38/checkpoints/epoch=3-step=140000.ckpt").to(device)
+    if dset == "comstyle":
+        reflessmod = lfc(DSET_CHKS[sco], False).to(device)
         reflessmod.eval()
         starttime = time.time()
-        scos = get_cometqe_scores(hyps, srcs, reflessmod)
-        totaltime = round((time.time() - starttime), 2)
-        print("TOOK TIME ", totaltime)
-        scos = scos[0]
-        del reflessmod 
-        return scos
-    if sco=="dupcqe":
-        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_34/checkpoints/epoch=9-step=930000.ckpt").to(device)
-        reflessmod.eval()
-        starttime = time.time()
-        scos = get_cometqe_scores(hyps, srcs, reflessmod)
+        with torch.no_grad():
+            scos = get_cometqe_scores(hyps, srcs, reflessmod)
         totaltime = round((time.time() - starttime), 2)
         print("TOOK TIME ", totaltime)
         scos = scos[0]
@@ -167,7 +164,7 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
         return scos
     if sco=='comet':
         comet_path = download_model(cometmodel, "./cometmodel")
-        comet = load_from_checkpoint(comet_path).to(device)
+        comet = load_from_checkpoint(comet_path, False).to(device)
         starttime = time.time()
         scos = get_comet_scores(hyps, srcs, refs, comet)
         totaltime = round((time.time() - starttime), 2)

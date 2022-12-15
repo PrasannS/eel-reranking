@@ -2,9 +2,9 @@ from tkinter.tix import MAX
 import torch
 from scipy.spatial.distance import cosine
 from more_itertools import locate
-from new_flatten_lattice import bert_tok
+from .new_flatten_lattice import detok
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 MAX_LEN =512
 
@@ -87,7 +87,7 @@ def submask_help(words):
 def subword_mask_all (sents):
     msk = torch.ones_like(sents)
     for i in range(0, len(sents)):
-        tmp = [bert_tok.decode(s) for s in sents[i]]
+        tmp = [detok.decode(s) for s in sents[i]]
         msk[i] = submask_help(tmp)
     return msk
 
@@ -176,7 +176,7 @@ def submask_help(words):
 def subword_mask_all (sents):
     msk = torch.ones_like(sents)
     for i in range(0, len(sents)):
-        tmp = [bert_tok.decode(s) for s in sents[i]]
+        tmp = [detok.decode(s) for s in sents[i]]
         msk[i] = submask_help(tmp)
     return msk
 

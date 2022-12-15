@@ -162,15 +162,21 @@ def run_baseline(args, model, inp, dec_prefix, adjust=True):
 
     # output should be a list of str
 
-
 def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
 
     # logging.info(args)
     nexample = args.nexample
     cnt = 0
     if not isinstance(dataset, zip):
-        dataset = dataset.shuffle(seed=2021)
-
+        dataset = dataset.shuffle(seed=1000)
+    else:
+        temp = list(dataset)
+        random.seed(1000)
+        random.shuffle(temp)
+        res1, res2 = zip(*temp)
+        # res1 and res2 come out as tuples, and so must be converted to lists.
+        res1, res2 = list(res1), list(res2)
+        dataset = zip(res1, res2)
     logging.info(f"Truncate dataset to {nexample} examples")
     #logging.info(f"Truncate dataset to {len(list(enumerate(tqdm(dataset))))} examples")
     for idx, example in enumerate(tqdm(dataset)):

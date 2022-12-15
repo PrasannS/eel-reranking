@@ -1,5 +1,5 @@
 from src.recom_search.model.beam_node_reverse import ReverseNode
-from lattice_cands import get_node, get_graph, get_all_possible_candidates
+from generate_utils.lattice_cands import get_node, get_graph, get_all_possible_candidates
 import os
 import pickle
 import pandas as pd
@@ -57,28 +57,29 @@ def num_choices (ndict):
             cnt+=1
     return cnt
 
-def reverse_save_graphs(path_output):
+def reverse_save_graphs(path_output, foldername):
     BASE = "./custom_output/data/"+path_output+"/"
-    TGT = "./reverse_graphs/"+path_output+"/"
+    TGT = "./outputs/graph_pickles/"+foldername+"/"
    
     # get location of all pickle files
     paths = os.listdir(BASE)
     if os.path.exists(TGT)==False:
         os.mkdir(TGT)
-
+    ind = 0
     for pat in paths:
         curgraph = get_graph(BASE+pat)
         restmp = reverse_graph(curgraph)
 
         assert len(restmp.keys())>0
 
-        filehandler = open(TGT+pat, 'wb') 
+        filehandler = open(TGT+str(ind), 'wb') 
         pickle.dump(restmp, filehandler)
         print("Num places where path diverges")
         print(num_choices(restmp))
         print("Num expanded nodes")
         print(len(restmp.keys())-2)
-        print(TGT+pat)
+        #print(TGT+pat)
+        ind+=1
 
 def reverse_df_graphs(inpnames):
     data = pd.read_csv(inpnames+".csv")
@@ -105,14 +106,32 @@ def explode_df_graphs(inpnames):
         print(ind)
         ind+=1
 
+def explode_graphs(reversedir, newname):
+    srcbase = "./custom_output/data/"+reversedir+"/"
+    newbase = "./outputs/graph_pickles/"+newname+"/"
+    graphpaths = os.listdir(srcbase)
+
+    if os.path.exists(newbase)==False:
+        os.mkdir(newbase)
+    ind = 0
+    for g in graphpaths:
+        acands = get_all_possible_candidates(srcbase+g, False)
+        filehandler = open(newbase+str(ind), 'wb') 
+        pickle.dump(acands, filehandler)
+        print(ind)
+        ind+=1
+
 if __name__ == "__main__":
     # TODO set up logic to retrieve graph given filename
     # reverse_save_graphs("mtn1_fr-en_bfs_recom_1_-1_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9")
     #reverse_save_graphs("mtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.902_0.0_0.9")
     #reverse_df_graphs("german_fnames")
     #reverse_df_graphs("french_fnames")
-    print("starting french")
-    explode_df_graphs("french_fnames")
-    print("starting german")
-    explode_df_graphs("german_fnames")
+    # russian
+    # reverse_save_graphs("mt1n_en-ru_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9", "rutest_reversed")
+    explode_graphs("mt1n_en-ru_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9", "rutest_exploded")
+    #print("starting french")
+    #explode_df_graphs("french_fnames")
+    #print("starting german")
+    #explode_df_graphs("german_fnames")
     

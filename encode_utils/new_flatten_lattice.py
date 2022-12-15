@@ -1,12 +1,9 @@
 import torch
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 from transformers import AutoTokenizer
 import pickle
-import pandas as pd
-import os
-from src.recom_search.model.beam_node_reverse import ReverseNode
+
 import numpy as np
-import math 
 
 class DLReverseNode():
     def __init__(self, oldnode):
@@ -138,7 +135,7 @@ def split_dl_node(node):
     res = []
     if len(node.detoks)==0:
         # special case with no token for some reason, TODO may need to examine
-        print("empty token")
+        # print("empty token")
         for prev in node.prevs:
             if node in prev.nextlist:
                 prev.nextlist.remove(node)
@@ -185,7 +182,7 @@ def split_dl_node(node):
         
 def tokenize_flat_lattice(gr):
     # get rid of first token, usually en_XX for french
-    print("original nodes - ", len(gr.keys()))
+    #print("original nodes - ", len(gr.keys()))
     tmplist = gr['root'].nextlist[0].nextlist
     tmpids = gr['root'].nextlist[0].next_ids
     gr['root'].nextlist = tmplist
@@ -196,7 +193,7 @@ def tokenize_flat_lattice(gr):
 
     for f in flatlat:
         res.extend(split_dl_node(f))
-    print("final detokd - ", len(res))
+    #print("final detokd - ", len(res))
     return res
     # we need to go through and convert this into lattices compatible 
     # with the format further into the pipeline, need to tokenize again with BERT
@@ -291,7 +288,7 @@ def update_removed(oldnode, newnode):
             n.prevs.remove(oldnode)
         n.prevs.append(newnode)
 # takes in input string
-def get_dictlist(grphinp, addnodes=False, compress=True):
+def get_dictlist(grphinp, addnodes=False, compress=False):
     if type(grphinp)==str:
         gra = pickle.load(open(grphinp, 'rb'))
     else:
@@ -314,6 +311,9 @@ def get_dictlist(grphinp, addnodes=False, compress=True):
     else:
         flres = fllat
     tdicts = []
+    # manual fix, make compatible with training
+    flres[0].token_idx = 0
+    flres[0].token_str = "<s>"
     for f in flres:
         tdicts.append({
             'token_idx': f.token_idx,

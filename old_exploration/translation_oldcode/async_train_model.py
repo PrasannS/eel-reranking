@@ -2,7 +2,7 @@ from transformers import AutoModel, AutoTokenizer
 import torch
 import torch.nn as nn
 import csv
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 import sys
 import random
 import pandas as pd

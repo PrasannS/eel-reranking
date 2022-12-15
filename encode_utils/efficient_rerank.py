@@ -1,20 +1,25 @@
 import torch
-from encoding_utils import *
-from new_mask_utils import get_causal_mask
+from .new_mask_utils import get_causal_mask
+from .encoding_utils import create_inputs
 
 import torch.nn as nn
 from transformers import AutoModel
-from new_flatten_lattice import get_dictlist, bert_tok
+from .new_flatten_lattice import get_dictlist, detok, toker
+import pickle
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
-from encoding_utils import *
-
-mbart_tok = bert_tok
-xlm_tok = bert_tok
+xlm_tok = detok
 
 import torch.nn as nn
 from transformers import AutoModel
+
+import sys
+sys.path.insert(1, '/mnt/data1/prasann/latticegen/lattice-generation/COMET')
+#sys.path.insert(1, '/mnt/data1/prasann/latticegen/lattice-generation')
+
+from COMET.comet.models import load_from_checkpoint as lfc
+
 # Returns Token Scores For Each (Sum becomes Regression)
 class XLMCometEmbeds(nn.Module):
     
@@ -116,13 +121,6 @@ def prepend_input(pgraph, inp):
         #    extok['nexts'][j] = extok['nexts'][j].split()[0]+" "+str(newpos)
     return inpflat, posadd
 
-def causal_mask (pgraph, padd):
-    start = connect_mat(pgraph)
-    start[:, :padd] = 1
-    start[:padd, padd:] = 0 
-    start[padd:, padd:] = torch.tril(start[padd:, padd:])
-    return start
-
 # topological sort the graphs, make sure that nodes that are next always come next in the list
 def topo_sort_nodes(pgraph):
     cp = [p for p in pgraph]
@@ -175,7 +173,7 @@ def prepare_nodes(truncnodes, scores, padd):
 
 MINPROP = 0.5
 MINDEF = -10000
-def dynamic_path(prepnodes, sco_funct, posapp, usednodes):
+def dynamic_path(prepnodes, sco_funct, posapp, usednodes, norm):
     
     bplist = [None]*len(prepnodes)
     bscolist = [MINDEF]*len(prepnodes)
@@ -194,7 +192,7 @@ def dynamic_path(prepnodes, sco_funct, posapp, usednodes):
             if mprev is not None:
                 # use from previous
                 bplist[prep.dppos].extend(bplist[mprev.dppos])
-                bscolist[prep.dppos] = bscolist[mprev.dppos] + sco_funct(prep, usednodes)
+                bscolist[prep.dppos] = bscolist[mprev.dppos] + sco_funct(prep, usednodes, norm)
                 #print(bscolist[prep.dppos])
         # TODO look into endings that are happening due to excessive trunction
         ncnt = 0
@@ -205,11 +203,11 @@ def dynamic_path(prepnodes, sco_funct, posapp, usednodes):
         if ncnt==0:
             endings.append(prep.dppos)
         if bscolist[prep.dppos]==MINDEF:
-            bscolist[prep.dppos]= sco_funct(prep, usednodes)
+            bscolist[prep.dppos]= sco_funct(prep, usednodes, norm)
         bplist[prep.dppos].append(prep)
         #bscolist[prep.dppos] += prep.score
     
-    print("maxend ,", max([len(bplist[e]) for e in endings ]))
+    #print("maxend ,", max([len(bplist[e]) for e in endings ]))
     #print([float(bscolist[e]) for e in endings])
     bestpath = []
     bestsco = MINDEF
@@ -227,7 +225,66 @@ def dynamic_path(prepnodes, sco_funct, posapp, usednodes):
         print("suboptimal, ", [tnode.token_str for tnode in bestpath])
     return bestpath, bplist, bscolist
 
+def get_effrerank_model(keystr):
+    reflessmod = None
+    if keystr == "comstyle":
+        # TODO update to most updated model at a given time
+        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_43/checkpoints/epoch=3-step=130000.ckpt", True).to(device)
+    elif keystr == "comnocause":
+        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_38/checkpoints/epoch=3-step=140000.ckpt", True).to(device)
+    elif keystr == "noun":
+        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_44/checkpoints/epoch=9-step=40000.ckpt", True).to(device)
+
+
+    reflessmod.eval()
+    return reflessmod
+
+
 MAX_TOKS = 512
+# run pipeline, but we use comet-style model 
+def run_comstyle(graph, model, scofunct, outfile, extra=False, numruns=1, verbose=False):
+
+    flattened, flnodes = get_dictlist(graph, True)
+
+    totnodes = len(flnodes)
+
+    # since we don't have any pre-input, we can just start from beginning?
+    # TODO validate that there isn't weirdness here
+    mask = get_causal_mask(flnodes, 0)
+    # make sure that we're only working with the tokens that fit into canvas
+    truncflat = flattened[:512]
+    sents, posids = create_inputs([truncflat])
+    # type of model is ReflessEval, input format of (everything)
+    if "noun" in outfile:
+        toked_inp = xlm_tok(["noun"], return_tensors="pt").to(device)
+    else:
+        toked_inp = xlm_tok([graph['input']], return_tensors="pt").to(device)
+    # src_input_ids, src_attention_mask, mt_input_ids, mt_pos_ids, mt_attention_mask
+    with torch.no_grad():
+        # TODO can make more efficient by shifting .to calls
+        predout = model(toked_inp.input_ids, toked_inp.attention_mask, sents, posids, \
+            mask.unsqueeze(0).to(device))
+        pred = predout['score']
+        norm = predout['norm']
+
+    blist = []
+    usednodes = []
+    # multiple rounds for diverse decoding
+    for decround in range(numruns):
+        # TODO make sure format's still fine
+        pnodes = prepare_nodes([flnodes[:512]], pred, 0)
+        dpath, beplist, besclist = dynamic_path(pnodes[0], scofunct, 0, usednodes, norm)
+        usednodes.extend([dp for dp in dpath])
+        blist.append(xlm_tok.decode([dp.token_idx for dp in dpath]))
+    if verbose:
+        print("SRC - "+graph['input'])
+        print("PRED - "+blist[0])
+        print("REF - "+graph['ref'])
+    # verbose return for debugging
+    if extra:
+        return blist , flattened, pnodes, mask, sents, posids, pred, 0, flnodes, dpath, beplist, besclist, totnodes
+    return blist
+
 def run_pipeline(graph, model, scofunct, extra=False, numruns=1, verbose=False):
     #flatold = fl.flatten_lattice(graph)
     flattened, flnodes = get_dictlist(graph, True)
@@ -260,126 +317,8 @@ def run_pipeline(graph, model, scofunct, extra=False, numruns=1, verbose=False):
         print("REF - "+graph['ref'])
     # verbose return for debugging
     if extra:
-        return blist , flattened, pnodes, mask, sents, posids, pred, posadd, flnodes, dpath, beplist, besclist, totnodes
+        return blist, flattened, pnodes, mask, sents, posids, pred, posadd, flnodes, dpath, beplist, besclist, totnodes
     return blist
 
-"""
-if __name__=="main":
-    modtmp = XLMCometEmbeds(drop_rate=0.1)
-    modtmp.load_state_dict(torch.load("./torchsaved/maskedcont4.pt"))
-    modtmp.eval()
-    base = "frtest_reversed/"
-"""
 
 
-# set scores computed for each token by the model
-def set_pgscores(pgraphs, scores):
-
-    for p in range(len(pgraphs)):
-        pgraph = pgraphs[p]
-        for i in range(min(len(pgraph),512)):
-            pgraph[i]['score'] = scores[p][i]
-            if pgraph[i]['token_idx']>0:
-                if pgraph[i]['score']==0:
-                    print(i)
-                    print(p)
-    return pgraphs
-
-# topological sort the graphs, make sure that nodes that are next always come next in the list
-def topo_sort_pgraph(pgraph):
-    cp = [p for p in pgraph]
-    tmpgraph = {}
-    for c in cp:
-        tmpgraph[c['id']]=c
-    res = []
-    visited = []
-    # reverse ordering
-    topo_sort_recurse(cp[0]['id'], res, [], tmpgraph)
-
-    res.reverse()
-    return res
-        
-def topo_sort_recurse(curid, toplist, visited, graph):
-    if curid in visited:
-        return 
-    # for stuff in truncated part of graph TODO
-    if curid not in graph.keys():
-        return
-    node = graph[curid]
-    visited.append(curid)
-    for nid in node['nexts']:
-        topo_sort_recurse(nid, toplist, visited, graph)
-    # once done, add to the beginnings
-    toplist.insert(0, node)
-
-def prepare_pgraphs(pgraphs, scores):
-    res = []
-    # make a deep copy of processed graphs
-    for p in pgraphs:
-        res.append([x for x in p])
-    # set scores for stuff
-    set_pgscores(res, scores)
-    # do topological sorting
-    newres = []
-    for r in res:
-        newres.append(topo_sort_pgraph(r))
-    return newres
-
-def default_scofunct (node):
-    return node['score']
-
-# given a list of sub-scores (topological flattening of the graph), use dp to get the highest scoring path
-# idlist has the corresponding graph ids for 
-# would need to do a sort on pgrapaps that makes sure that no next node is before in the linear ordering
-# reverse since we're using nexts
-# TODO simplify code to not need so many data structures
-def dp_best_path(pgraphs, graph, sco_funct):
-    bplist = []
-    bsco_list =[]
-    idlist = get_idlist(pgraphs)
-    for i in range(len(idlist)):
-        bpath = []
-        cur = pgraphs[i]
-            
-        # get the highest prev from ahead to use
-        mval = -10
-        maxnext = None
-        for n in cur['nexts']:
-            try:
-                if graph[n]['bestsco']>mval:
-                    mval = graph[n]['bestsco']
-                    maxnext = graph[n]
-            except:
-                ""
-        cursco = sco_funct(cur)
-        # add in scores / path from that prev
-        if maxnext==None:
-            bpath.append(i)
-            bplist.append(bpath)
-            bsco_list.append(cursco)
-            # check if this is how things work in python
-            graph[cur['id']]['bestsco'] = cursco
-            graph[cur['id']]['plist'] = bpath
-            continue
-        bpath.extend(maxnext['plist']+[i])
-        bplist.append(bpath)
-        bsco_list.append(cursco+mval)
-        graph[cur['id']]['bestsco'] = cursco+mval
-        graph[cur['id']]['plist'] = bpath
-        #print(bpath)
-    return bplist[-1], bsco_list[-1]
-
-def get_idlist(pgraph):
-    return [p['id'] for p in pgraph]
-
-def dp_pgraph(pgraph, scofunct):
-    graph = {}
-    for p in pgraph:
-        # TODO check if scores are negative number compatible
-        p['bestsco'] = 0
-        p['plist'] = []
-        graph[p['id']] = p
-    bestpath, bsco = dp_best_path(pgraph, graph, scofunct)
-    print(bsco)
-    bestpath.reverse()
-    return [pgraph[x]['token_idx'] for x in bestpath]

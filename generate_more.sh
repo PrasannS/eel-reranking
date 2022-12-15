@@ -1,0 +1,1 @@
+python -u generate_tables.py

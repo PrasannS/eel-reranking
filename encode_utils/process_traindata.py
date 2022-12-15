@@ -1,6 +1,6 @@
 import json
 import random
-from mt_scores import get_scores_auto
+from .mt_scores import get_scores_auto
 import warnings
 warnings.filterwarnings('ignore')
 import pandas as pd

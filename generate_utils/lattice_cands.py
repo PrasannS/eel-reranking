@@ -2,9 +2,8 @@ import pickle
 import os 
 from transformers import AutoTokenizer
 import argparse
-import flatten_lattice as fl
 
-tokenizer = fl.bert_tok
+tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base")
 
 def load_save_data(fname):
     f = open(fname, 'rb')
@@ -201,7 +200,7 @@ def process_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-dataset', type=str)
     
-    parser.add_argument('-device', type=str, default='cuda:2')
+    parser.add_argument('-device', type=str, default='cuda:1')
     parser.add_argument('-exploded', type=str, default="False")
     parser.add_argument('-path_output', type=str, default="mtn1_fr-en_bfs_recom_2_-1_False_0.4_True_False_4_5_zip_-1_0.0_0.9")
 

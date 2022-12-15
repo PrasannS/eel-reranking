@@ -4,12 +4,16 @@ import pickle
 import numpy as np
 import os
 
+# TODO we shouldn't be using this, come back to make sure things are ok here
+# TODO check language stuff
+
 GBASE = "./reverse_graphs/"
 endebase = "mt1n_en-de_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9/"
 frenbase = "mtn1_fr-en_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.902_0.0_0.9/"
 # TODO lazy, just changing bert_tok to xlm_tok 
 # bert_tok = AutoTokenizer.from_pretrained('bert-base-cased')
 mbart_tok = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
+# TODO this might be the issue! It could be a tokenizer issue
 bert_tok = AutoTokenizer.from_pretrained("xlm-roberta-base")
 mbart_tok.src_lang = "en_XX"
 

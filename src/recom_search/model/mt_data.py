@@ -11,6 +11,8 @@ def load_generate_set(num, dataset):
     fname = './translation_data/processed/'+dataset+"_"+str(num)+".csv"
     if exists(fname):
         dset = pd.read_csv(fname, index_col=False)
+        # shuffle dataset
+        dset = dset.sample(frac=1).reset_index()
     else:
         dset = get_sample_set(num, dataset)
         dset.to_csv(fname)

@@ -44,12 +44,3 @@ def rerank_df(df, scofunct, scoparam):
         exsamps = df[df['ref']==r]
         rrdf.append(scofunct(exsamps, scoparam[0], scoparam[1]))
     return sum(rrdf)/len(rrdf)
-
-def rerank_dist(df, scofunct, scoparam):
-    reflist = list(df['ref'].unique())
-    rrdf = []
-    for r in reflist:
-        # extract dataframe corresponding to smth
-        exsamps = df[df['ref']==r]
-        rrdf.append(scofunct(exsamps, scoparam[0], scoparam[1]))
-    return rrdf

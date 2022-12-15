@@ -7,13 +7,13 @@ import csv
 import sys
 import random
 import pandas as pd
-from rerank_score_cands_new import load_cands
+from .rerank_score_cands_new import load_cands
 import numpy as np
 from comet import download_model, load_from_checkpoint
 import pickle
 from sklearn.utils import shuffle
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 csv.field_size_limit(sys.maxsize)
 xlm_tok = AutoTokenizer.from_pretrained('xlm-roberta-base')
 loss_function = nn.MSELoss()
