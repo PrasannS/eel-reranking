@@ -1,7 +1,30 @@
 import torch
+import random
+
+def bestprobsingle(mask, row, checknodes, mlen):
+    bestnext = -1
+    bestp = -1
+    # use next with highest prob
+    for n in checknodes:
+        if n.canvpos<mlen: # keep within bounds
+            if n.prob>bestp:
+                bestnext = n.canvpos
+                bestp = n.prob
+    if bestnext>-1:
+        mask[row][bestnext] = 1
+    
+def randomsingle(mask, row, checknodes, mlen):
+    if row>0:
+        avail = []
+        # use next with highest prob
+        for n in checknodes:
+            if n.canvpos<mlen: # keep within bounds
+                avail.append(n)
+
+        mask[row][random.choice(avail).canvpos] = 1
 
 # get adjacency from flat canvas of tokens, with previous tokens
-def adj_mat(flat_canv, mlen, forward, single_cont):
+def adj_mat(flat_canv, mlen, forward, single_cont, afunc = bestprobsingle):
     mask = torch.zeros((mlen, mlen))
     # have a cutoff after the calculated limit to circumvent extra computation
     # and potential bugs
@@ -11,16 +34,7 @@ def adj_mat(flat_canv, mlen, forward, single_cont):
         else:
             qlist = flat_canv[row].prevs
         if single_cont:
-            bestnext = -1
-            bestp = -1
-            # use next with highest prob
-            for n in qlist:
-                if n.canvpos<mlen: # keep within bounds
-                    if n.prob>bestp:
-                        bestnext = n.canvpos
-                        bestp = n.prob
-            if bestnext>-1:
-                mask[row][bestnext] = 1
+            afunc(mask, row, qlist, mlen)
         else:
             # normal, just use all prevs that are valid
             for p in qlist:
@@ -55,31 +69,37 @@ def mask_prep_canv(canv):
 MAXTOKS = 512
 # get connectivity matrix from flat canvas of tokens
 # by exponentiating reverse connected adjacency
-def get_connect_mask(flat_canv, posadd, forward):
+def get_connect_mask(flat_canv, posadd, forward, params):
     # TODO is there an OBO here?
     mlen = min(MAXTOKS-(posadd), len(flat_canv))
     maxpos = mask_prep_canv(flat_canv)
-    # either get forwards or backwards only connectivity
-    back_adjac = adj_mat(flat_canv, mlen, forward, True)
+    if 'afunc' in params.keys():
+        # either get forwards or backwards only connectivity
+        back_adjac = adj_mat(flat_canv, mlen, forward, True, params['afunc'])
+    else:
+        back_adjac = adj_mat(flat_canv, mlen, forward, True)
 
     tot = back_adjac
     tmp = back_adjac
     # keep on going until all nodes hit the back
-    if True: # TODO made this from forward, not sure why other option won't work
+    if False: # TODO made this from forward, not sure why other option won't work
         for i in range(maxpos+1):
             tmp = torch.mm(back_adjac, tmp)
             tot += tmp
     else:
-        while torch.sum((tot[:, 0]>0))<(mlen-1):
+        numrounds = 0
+        # TODO there's a bug, but just run results for now
+        while torch.sum((tot[:, 0]>0))<(mlen-1) and numrounds<512:
             tmp = torch.mm(back_adjac, tmp)
             tot += tmp
+            numrounds+=1
     tot = tot+ torch.eye(mlen)
     return (tot>0).int()
 
-def get_causal_mask(flatcanv, posadd, addforward=False):
-    custmax = get_connect_mask(flatcanv, posadd, False)
+def get_causal_mask(flatcanv, posadd, params, addforward=False):
+    custmax = get_connect_mask(flatcanv, posadd, False, params)
     if addforward:
-        custmax = custmax + get_connect_mask(flatcanv, posadd, True)
+        custmax = custmax + get_connect_mask(flatcanv, posadd, True, params)
         custmax = (custmax>0).int()
     # everything starts off as 1s
     res = torch.ones((MAXTOKS, MAXTOKS))

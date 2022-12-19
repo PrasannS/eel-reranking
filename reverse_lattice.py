@@ -26,16 +26,16 @@ def update_graph(nodedict, node):
     if node.uid not in nodedict:
         nodedict[node.uid] = ReverseNode(node)
     for n in range(0, len(node.prev)):
-        pid = node.prev[n]
+        #pid = node.prev[n]
         pnode = get_node(node, n)
         first = False
         # check if in node dictionary, first time visiting
-        if pid not in nodedict:
+        if pnode.uid not in nodedict:
             # add new node
             # TODO offload long constructor
-            nodedict[pid] = ReverseNode(pnode)
+            nodedict[pnode.uid] = ReverseNode(pnode)
             first = True
-        prevnode = nodedict[pid]
+        prevnode = nodedict[pnode.uid]
         if node.uid not in prevnode.next_ids:
             prevnode.nextlist.append(nodedict[node.uid])
             prevnode.next_scores.append(node.score)
@@ -128,8 +128,8 @@ if __name__ == "__main__":
     #reverse_df_graphs("german_fnames")
     #reverse_df_graphs("french_fnames")
     # russian
-    # reverse_save_graphs("mt1n_en-ru_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9", "rutest_reversed")
-    explode_graphs("mt1n_en-ru_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.9_0.0_0.9", "rutest_exploded")
+    reverse_save_graphs("mtn1_fr-en_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "frenchbeam50_reversed")
+    explode_graphs("mtn1_fr-en_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "frenchbeam50_exploded")
     #print("starting french")
     #explode_df_graphs("french_fnames")
     #print("starting german")

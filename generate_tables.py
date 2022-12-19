@@ -70,14 +70,15 @@ def metrics_mapping (metric, tset):
 
 if __name__=="__main__":
     
-    savefile = "endefewsampv1.csv"
-    metrics = ['comet', 'cqe', 'posthoc', 'dupcqe']
+    savefile = "frenbeam50v1.csv"
+    #metrics = ['comet', 'cqe', 'posthoc', 'dupcqe']
+    metrics = ['utnoun', 'unique_nouns']
 
     if os.path.exists("outputs/score_csvs/"+savefile):
         tset = pd.read_csv("outputs/score_csvs/"+savefile, index_col=0)
     else:
-        #tset = make_sample_test("rutest_exploded/", -1, 100)
-        tset = make_sample_test("germantest_exploded/")
+        tset = make_sample_test("frenchbeam50_exploded/", -1, 100)
+        #tset = make_sample_test("frenchbeam_exploded/")
     
     tset = tset.dropna()
     print("size of dset: ", len(tset))

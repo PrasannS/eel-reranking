@@ -205,10 +205,7 @@ def dynamic_path(prepnodes, sco_funct, posapp, usednodes, norm):
         if bscolist[prep.dppos]==MINDEF:
             bscolist[prep.dppos]= sco_funct(prep, usednodes, norm)
         bplist[prep.dppos].append(prep)
-        #bscolist[prep.dppos] += prep.score
-    
-    #print("maxend ,", max([len(bplist[e]) for e in endings ]))
-    #print([float(bscolist[e]) for e in endings])
+
     bestpath = []
     bestsco = MINDEF
     for e in endings:
@@ -223,7 +220,7 @@ def dynamic_path(prepnodes, sco_funct, posapp, usednodes, norm):
         bestsco = bscolist[endings[bind]]
         bestpath = bplist[endings[bind]]
         print("suboptimal, ", [tnode.token_str for tnode in bestpath])
-    return bestpath, bplist, bscolist
+    return bestpath, bestsco, bplist, bscolist
 
 def get_effrerank_model(keystr):
     reflessmod = None
@@ -242,7 +239,7 @@ def get_effrerank_model(keystr):
 
 MAX_TOKS = 512
 # run pipeline, but we use comet-style model 
-def run_comstyle(graph, model, scofunct, outfile, extra=False, numruns=1, verbose=False):
+def run_comstyle(graph, model, scofunct, outfile, params, extra=False, numruns=1, verbose=False):
 
     flattened, flnodes = get_dictlist(graph, True)
 
@@ -250,7 +247,7 @@ def run_comstyle(graph, model, scofunct, outfile, extra=False, numruns=1, verbos
 
     # since we don't have any pre-input, we can just start from beginning?
     # TODO validate that there isn't weirdness here
-    mask = get_causal_mask(flnodes, 0)
+    mask = get_causal_mask(flnodes, 0, params, False)
     # make sure that we're only working with the tokens that fit into canvas
     truncflat = flattened[:512]
     sents, posids = create_inputs([truncflat])
@@ -268,21 +265,24 @@ def run_comstyle(graph, model, scofunct, outfile, extra=False, numruns=1, verbos
         norm = predout['norm']
 
     blist = []
+    slist = []
     usednodes = []
     # multiple rounds for diverse decoding
     for decround in range(numruns):
         # TODO make sure format's still fine
         pnodes = prepare_nodes([flnodes[:512]], pred, 0)
-        dpath, beplist, besclist = dynamic_path(pnodes[0], scofunct, 0, usednodes, norm)
+        dpath, bsco, beplist, besclist = dynamic_path(pnodes[0], scofunct, 0, usednodes, norm)
+
         usednodes.extend([dp for dp in dpath])
         blist.append(xlm_tok.decode([dp.token_idx for dp in dpath]))
+        slist.append(bsco)
     if verbose:
         print("SRC - "+graph['input'])
         print("PRED - "+blist[0])
         print("REF - "+graph['ref'])
     # verbose return for debugging
     if extra:
-        return blist , flattened, pnodes, mask, sents, posids, pred, 0, flnodes, dpath, beplist, besclist, totnodes
+        return blist , flattened, pnodes, mask, sents, posids, pred, 0, flnodes, dpath, beplist, besclist, totnodes, slist
     return blist
 
 def run_pipeline(graph, model, scofunct, extra=False, numruns=1, verbose=False):
@@ -305,19 +305,21 @@ def run_pipeline(graph, model, scofunct, extra=False, numruns=1, verbose=False):
     #bestpath = dp_pgraph(prepared_pgraphs[0], scofunct)
     #best = xlm_tok.decode(bestpath)
     blist = []
+    slist = []
     usednodes = []
     for decround in range(numruns):
         pnodes = prepare_nodes([flnodes[:512-(posadd)]], pred[0], posadd)
-        dpath, beplist, besclist = dynamic_path(pnodes[0], scofunct, posadd, usednodes)
+        dpath, bsco, beplist, besclist = dynamic_path(pnodes[0], scofunct, posadd, usednodes)
         usednodes.extend([dp for dp in dpath])
         blist.append(xlm_tok.decode([dp.token_idx for dp in dpath]))
+        slist.append(bsco)
     if verbose:
         print("SRC - "+graph['input'])
         print("PRED - "+blist[0])
         print("REF - "+graph['ref'])
     # verbose return for debugging
     if extra:
-        return blist, flattened, pnodes, mask, sents, posids, pred, posadd, flnodes, dpath, beplist, besclist, totnodes
+        return blist, flattened, pnodes, mask, sents, posids, pred, posadd, flnodes, dpath, beplist, besclist, totnodes, slist
     return blist
 
 

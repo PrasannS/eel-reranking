@@ -15,7 +15,10 @@ def get_graph(fname):
     return pickle.load(f)
 
 def get_node (node, ind):
-    return node.hash.retrieve_node(node.prev[ind])
+    if hasattr(node, "hash"):
+        return node.hash.retrieve_node(node.prev[ind])
+    else:
+        return node.prev[ind]
     
 # get up to n words that come before sequence
 def get_context(n, pl):
@@ -106,6 +109,7 @@ def remove_dups(allplists):
     i = 0
     while(i<len(allplists)-1):
         if uidlist[i] in uidlist[i+1:]:
+            i+=1
             continue
         else:
             res.append(allplists[i])
