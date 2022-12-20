@@ -4,8 +4,7 @@ from .encoding_utils import create_inputs
 
 import torch.nn as nn
 from transformers import AutoModel
-from .new_flatten_lattice import get_dictlist, detok, toker
-import pickle
+from .new_flatten_lattice import get_dictlist, detok
 
 device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
@@ -16,7 +15,6 @@ from transformers import AutoModel
 
 import sys
 sys.path.insert(1, '/mnt/data1/prasann/latticegen/lattice-generation/COMET')
-#sys.path.insert(1, '/mnt/data1/prasann/latticegen/lattice-generation')
 
 from COMET.comet.models import load_from_checkpoint as lfc
 
@@ -115,10 +113,7 @@ def prepend_input(pgraph, inp):
     for i in range(posadd, len(inpflat)):
         extok = inpflat[i]
         extok['pos']+=posadd
-        #extok['id']= str(extok['token_idx'])+" "+str(extok['pos'])
-        #for j in range(len(extok['nexts'])):
-        #    newpos = extok["pos"]
-        #    extok['nexts'][j] = extok['nexts'][j].split()[0]+" "+str(newpos)
+        
     return inpflat, posadd
 
 # topological sort the graphs, make sure that nodes that are next always come next in the list
@@ -251,6 +246,8 @@ def run_comstyle(graph, model, scofunct, outfile, params, extra=False, numruns=1
     # make sure that we're only working with the tokens that fit into canvas
     truncflat = flattened[:512]
     sents, posids = create_inputs([truncflat])
+    # TODO change this back for bert?
+    posids = posids + 2
     # type of model is ReflessEval, input format of (everything)
     if "noun" in outfile:
         toked_inp = xlm_tok(["noun"], return_tensors="pt").to(device)
@@ -298,6 +295,8 @@ def run_pipeline(graph, model, scofunct, extra=False, numruns=1, verbose=False):
     # make sure that we're only working with the tokens that fit into canvas
     truncflat = flattened[:512]
     sents, posids = create_inputs([truncflat])
+    # TODO change this for bert
+    posids = posids + 2
     with torch.no_grad():
         pred = model(sents, posids, mask.unsqueeze(0).to(device))
     # fls = [truncflat]

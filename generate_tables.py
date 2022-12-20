@@ -60,7 +60,7 @@ def metrics_mapping (metric, tset):
     elif metric=="comet":
         tset[metric] = get_scores_auto(hyps, srcs, refs, "comet", "")
     elif metric=="posthoc":
-        tset[metric] = get_scores_auto(hyps, srcs, refs, "posthoc", "en-ru")
+        tset[metric] = get_scores_auto(hyps, srcs, refs, "posthoc", "fr-en")
     elif metric=="dupcqe":
         tset[metric] = get_scores_auto(hyps, srcs, refs, "dupcqe", "comstyle")
     # TODO add support for the english->russian table later
@@ -70,15 +70,14 @@ def metrics_mapping (metric, tset):
 
 if __name__=="__main__":
     
-    savefile = "frenbeam50v1.csv"
-    #metrics = ['comet', 'cqe', 'posthoc', 'dupcqe']
-    metrics = ['utnoun', 'unique_nouns']
+    savefile = "frenexplodev1.csv"
+    metrics = ['comet', 'cqe', 'posthoc', 'dupcqe']
+    #metrics = ['utnoun', 'unique_nouns']
 
     if os.path.exists("outputs/score_csvs/"+savefile):
         tset = pd.read_csv("outputs/score_csvs/"+savefile, index_col=0)
     else:
-        tset = make_sample_test("frenchbeam50_exploded/", -1, 100)
-        #tset = make_sample_test("frenchbeam_exploded/")
+        tset = make_sample_test("frenchtest_exploded/", -1, 100)
     
     tset = tset.dropna()
     print("size of dset: ", len(tset))

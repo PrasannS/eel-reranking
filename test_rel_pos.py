@@ -8,7 +8,7 @@ if __name__=="__main__":
     #configuration = XLMRobertaConfig(position_embedding_type='relative_key')
 
     # Initializing a model (with random weights) from the xlm-roberta-base style configuration
-    model = XLMRobertaModel.from_pretrained('xlm-roberta-base', position_embedding_type='relative_key')
+    model = XLMRobertaModel.from_pretrained('xlm-roberta-base')
 
 
     tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base')

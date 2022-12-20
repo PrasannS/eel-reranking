@@ -12,16 +12,6 @@ def bestprobsingle(mask, row, checknodes, mlen):
                 bestp = n.prob
     if bestnext>-1:
         mask[row][bestnext] = 1
-    
-def randomsingle(mask, row, checknodes, mlen):
-    if row>0:
-        avail = []
-        # use next with highest prob
-        for n in checknodes:
-            if n.canvpos<mlen: # keep within bounds
-                avail.append(n)
-
-        mask[row][random.choice(avail).canvpos] = 1
 
 # get adjacency from flat canvas of tokens, with previous tokens
 def adj_mat(flat_canv, mlen, forward, single_cont, afunc = bestprobsingle):
@@ -110,3 +100,42 @@ def get_causal_mask(flatcanv, posadd, params, addforward=False):
     return res
 
     
+# adj matrix helpers
+def randomsingle(mask, row, checknodes, mlen):
+    if row>0:
+        avail = []
+        # use next with highest prob
+        for n in checknodes:
+            if n.canvpos<mlen: # keep within bounds
+                avail.append(n)
+        if len(avail)==0:
+            print(len(checknodes))
+            print(row)
+        mask[row][random.choice(avail).canvpos] = 1
+        
+def useall(mask, row, checknodes, mlen):
+    if row>0:
+        # use next with highest prob
+        for n in checknodes:
+            if n.canvpos<mlen: # keep within bounds
+                mask[row][n.canvpos] = 1
+        
+# randomly use nodes, but possibility of more than one previous node being used
+def randommulti(mask, row, checknodes, mlen):
+    if row>0:
+        avail = []
+        # use next with highest prob
+        for n in checknodes:
+            if n.canvpos<mlen: # keep within bounds
+                avail.append(n)
+        if len(avail)==0:
+            print(len(checknodes))
+            print(row)
+        #mask[row][random.choice(avail).canvpos] = 1
+        
+        tosamp = random.randint(1, len(avail))
+        samp = random.sample(avail, tosamp)
+        # use next with highest prob
+        for n in samp:
+            if n.canvpos<mlen: # keep within bounds
+                mask[row][n.canvpos] = 1 

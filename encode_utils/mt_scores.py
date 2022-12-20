@@ -164,7 +164,10 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
         return scos
     if sco=='comet':
         comet_path = download_model(cometmodel, "./cometmodel")
-        comet = load_from_checkpoint(comet_path, False).to(device)
+        try:
+            comet = load_from_checkpoint(comet_path).to(device)
+        except:
+            comet = load_from_checkpoint(comet_path, False).to(device)
         starttime = time.time()
         scos = get_comet_scores(hyps, srcs, refs, comet)
         totaltime = round((time.time() - starttime), 2)

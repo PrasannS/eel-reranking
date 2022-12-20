@@ -30,7 +30,7 @@ def get_lattice_preds(gbase, funct, outfile, causal):
     allres = []
     l = len(os.listdir(gbase))
     # TODO remove later when load is lower
-    l = 5
+    #l = 5
     for ind in range(l):
         print(ind)
         allres.append(test_graph_ind(gbase, ind, encodemod, funct, outfile))
@@ -52,8 +52,8 @@ def get_act_hyps(hyplist, cutoff):
 CAUSAL = True
 # TODO do a script setup so that we can rapid-fire generate these
 if __name__=="__main__":
-    outname = "noun_comstyle_v2"
-    graphsuff = "detest_reversed/"
+    outname = "enru_comstyle_v1"
+    graphsuff = "rutest_reversed/"
     if os.path.exists(outbase+outname+".csv"):
         print("load from existing")
         gpreds = pd.read_csv(outbase+outname+".csv", index_col=0)
@@ -106,6 +106,8 @@ if __name__=="__main__":
 # v13 - non-causal model with special mask, buggy forward mask, w .94 (.447)
 # v14 - non-causal model with special mask, fixed forward mask, w .94 (.39)
 # TODO do some numerical checks here, might just be using bad weights
+######### enru_comstyle ############
+# v1 - no weighting, fixed bug (use for dupcqe table)
 
 ########### noun_comstyle [on the whole thing] ############
 # v1 - initial, forgot to put word "noun" as input
