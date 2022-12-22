@@ -1,3 +1,5 @@
+# file to help with running lattice pipeline on a set of candidates, and generate numbers for tables
+
 import torch
 import pickle
 import numpy as np
