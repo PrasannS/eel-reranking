@@ -1,5 +1,5 @@
 import torch
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 from transformers import AutoTokenizer
 import pickle
 
@@ -166,8 +166,10 @@ def split_dl_node(node):
         res.append(tmp)
     # update connection from previous
     for prev in node.prevs:
-        prev.nextlist.remove(node)
-        prev.next_ids.remove(node.uid)
+        if node in prev.nextlist:
+            prev.nextlist.remove(node)
+        if node.uid in prev.next_ids:
+            prev.next_ids.remove(node.uid)
         prev.nextlist.append(res[0])
         prev.next_ids.append(res[0].uid)
     # update next connection of nodes
@@ -321,9 +323,7 @@ def get_dictlist(grphinp, addnodes=False, compress=False):
             'pos': f.pos, 
             'id': f.uid,
             'nexts': [fn.uid for fn in f.nextlist], 
-            # TODO need to verify what this score actually is first, might already be nll
             'prob': f.prob, 
-            #'score': math.log(f.prob), 
         })
     if addnodes:
         assert len(tdicts)==len(flres)

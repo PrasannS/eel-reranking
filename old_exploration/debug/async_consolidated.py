@@ -1,6 +1,6 @@
 from efficient_rerank import run_pipeline, XLMCometEmbeds
 import torch
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 import pickle
 import pandas as pd
 import os

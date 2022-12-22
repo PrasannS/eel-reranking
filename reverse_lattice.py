@@ -115,9 +115,12 @@ def explode_graphs(reversedir, newname):
         os.mkdir(newbase)
     ind = 0
     for g in graphpaths:
-        acands = get_all_possible_candidates(srcbase+g, False)
-        filehandler = open(newbase+str(ind), 'wb') 
-        pickle.dump(acands, filehandler)
+        try:
+            acands = get_all_possible_candidates(srcbase+g, False)
+            filehandler = open(newbase+str(ind), 'wb') 
+            pickle.dump(acands, filehandler)
+        except:
+            print("Recursion Failed")
         print(ind)
         ind+=1
 
@@ -128,8 +131,8 @@ if __name__ == "__main__":
     #reverse_df_graphs("german_fnames")
     #reverse_df_graphs("french_fnames")
     # russian
-    reverse_save_graphs("mtn1_fr-en_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "frenchbeam50_reversed")
-    explode_graphs("mtn1_fr-en_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "frenchbeam50_exploded")
+    # reverse_save_graphs("sum_xsum_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "nounsum_reversed")
+    explode_graphs("sum_xsum_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "nounsum_exploded")
     #print("starting french")
     #explode_df_graphs("french_fnames")
     #print("starting german")

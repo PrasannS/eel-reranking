@@ -6,7 +6,7 @@ import torch.nn as nn
 from transformers import AutoModel
 from .new_flatten_lattice import get_dictlist, detok
 
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 xlm_tok = detok
 

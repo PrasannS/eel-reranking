@@ -67,10 +67,10 @@ def all_lattice_multi(n, scofunct, afunc, args):
     cnt = 0
     SETLEN = args['setlen']
     for i in range(SETLEN):
-        #try:
-        outval = lattice_multi_rerank(i, n, scofunct, afunc, args)
-        #except:
-        #    print("had an error")
+        try:
+            outval = lattice_multi_rerank(i, n, scofunct, afunc, args)
+        except:
+            print("had an error")
         if outval==None:
             continue
         else:
