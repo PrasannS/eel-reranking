@@ -1,7 +1,8 @@
 import torch
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 from transformers import AutoTokenizer
 import pickle
+import copy
 
 import numpy as np
 
@@ -9,11 +10,12 @@ class DLReverseNode():
     def __init__(self, oldnode):
         self.uid = oldnode.uid
         self.prob = oldnode.prob
-        self.token_idx = oldnode.token_idx
+        self.token_idx = copy.deepcopy(oldnode.token_idx)
         self.token_str = oldnode.token_str
-        self.nextlist = oldnode.nextlist
-        self.next_scores = oldnode.next_scores
-        self.next_ids = oldnode.next_ids
+        self.nextlist =[t for t in oldnode.nextlist]
+        # TODO nextscores, nextids probably unnecessary
+        self.next_scores = [t for t in oldnode.next_scores]
+        self.next_ids = [t for t in oldnode.next_ids]
         self.prevs = []
         self.detoks = []
         self.pos = -1
@@ -32,6 +34,8 @@ class DLReverseNode():
 
 base = "frtest_reversed/"
 toker = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
+# TODO SWITCH for MT vs XSUM lattices
+#toker = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
 detok = AutoTokenizer.from_pretrained("xlm-roberta-base")
 
 # TODO later on just move this to the initial graph reversal
@@ -45,13 +49,16 @@ def get_dbl_graph(grph):
     for gk in newgrph.keys():
         if gk=="input" or gk== "ref" or gk== "rootid":
             continue
-        # this should handle everything having a previous list
+        # reset all the nexts to be consistent with next ids
         newgrph[gk].nextlist = None
+        # remove duplicate nexts
+        newgrph[gk].next_ids = list(set(newgrph[gk].next_ids))
         newgrph[gk].nextlist = [newgrph[idl] for idl in newgrph[gk].next_ids]
     for gk in newgrph.keys():
         if gk=="input" or gk== "ref" or gk== "rootid":
             continue
         for n in newgrph[gk].nextlist:
+            assert newgrph[gk] not in n.prevs
             n.prevs.append(newgrph[gk])
         newgrph[gk].token_idx = [newgrph[gk].token_idx]
     # TODO do something to update scores on word graph
@@ -62,9 +69,13 @@ def greedy_traverse(gr, fun, norev=True):
     queue = []
     queue.append(gr['root'])
     visited = []
+    
     while len(queue)>0:
+        cur = None
         cur = queue.pop()
         fun(cur, gr)
+        #if cur.pos>=0:
+        #    print(cur.pos)
         order = np.argsort([n.prob for n in cur.nextlist])
         # highest prob gets popped off first
         for o in order:
@@ -75,9 +86,12 @@ def greedy_traverse(gr, fun, norev=True):
 # make so graph has word-only nodes, check tokenization at different node boundaries
 # update pointers afterwards
 def combine_nodes(gr):
-    dblgrph = get_dbl_graph(gr)
-    #print("Doubly Linked - ", len(dblgrph.keys()))
-    greedy_traverse(dblgrph, consolidate_node)
+    # make graph doubly linked for easier use
+    dblgrph = get_dbl_graph(gr) # bug free up to this point
+
+    # make graph a word graph
+    greedy_traverse(dblgrph, consolidate_node) # weirdness is gone now?
+
     rmlist = []
     for d in dblgrph.keys():
         if d=="input" or d== "ref" or "root" in d:
@@ -108,97 +122,107 @@ flat = []
 def get_flat_lattice(gr):
     global flat
     flat = []
+    # convert graph based on tokenizer to graph split by words
     wordgraph = combine_nodes(gr)
-    # print("Combined nodes - ", len(wordgraph))
+
     # clear out prevs
     for gk in wordgraph.keys():
         if gk=="input" or gk== "ref" or gk== "rootid":
             continue
         wordgraph[gk].prevs = []
-    # reset prevs
+    # reset prevs with respect to nexts
     for gk in wordgraph.keys():
         if gk=="input" or gk== "ref" or gk== "rootid":
             continue
         for n in wordgraph[gk].nextlist:
             n.prevs.append(wordgraph[gk])
+    # canonically lay everything out with respect to end
     greedy_traverse(wordgraph, add_to_flat)
-    # print("Greedy traversal - ", len(flat))
+
     cp = [f for f in flat]
     return cp
 
-# take a word node, convert it back to tokenized nodes
+# take a word node, convert it back to tokenized nodes, (ignores scores, ids, etc. so those
+# need to be updated separately)
 def split_dl_node(node):
+    # special case with no token for some reason, TODO may need to examine
+    if len(node.detoks)==0:
+        for prev in node.prevs:
+            if node in prev.nextlist:
+                prev.nextlist.remove(node)
+            else:
+                print("weirdness")
+            # add all from prev 
+            for n in node.nextlist:
+                if n not in prev.nextlist:
+                    prev.nextlist.append(n)
+        return []
+    # if it's a single token word, just keep the node
     if len(node.detoks)==1:
         node.token_idx = node.detoks[0]
         node.token_str = detok.decode(node.detoks[0])
         return [node]
     res = []
-    if len(node.detoks)==0:
-        # special case with no token for some reason, TODO may need to examine
-        # print("empty token")
-        for prev in node.prevs:
-            if node in prev.nextlist:
-                prev.nextlist.remove(node)
-            if node.uid in prev.next_ids:
-                prev.next_ids.remove(node.uid)
-            prev.nextlist.extend(node.nextlist)
-            prev.next_ids.extend(node.next_ids)
-        for nextn in node.nextlist:
-            if node in nextn.prevs:
-                nextn.prevs.remove(node)
-            nextn.prevs.extend(node.prevs)
-        return []
-    # update previous of nodes
+    origpos = node.pos
+    origcanv = node.canvpos
+    # create new nodes
     for i in range(len(node.detoks)):
-        n = node.detoks[i]
+        ntok = node.detoks[i]
         # make a copy of our base node
         tmp = None
-        tmp = DLReverseNode(node)
         if i>0:
-            tmp.prevs = [res[-1]]
             # only have probability on 1
+            tmp = DLReverseNode(node)
             tmp.prob = 1
-        tmp.uid = tmp.uid+str(i)
-        tmp.pos = tmp.pos - (len(node.detoks)-i-1)
-        tmp.canvpos = tmp.canvpos - (len(node.detoks)-i-1)
-        tmp.token_idx = n
-        tmp.token_str = detok.decode(n)
+            tmp.uid = tmp.uid+str(i)
+        # use original node to start, don't need to update those connectionsn
+        else:
+            tmp = node
+        tmp.pos = origpos - (len(node.detoks)-i-1)
+        tmp.canvpos = origcanv - (len(node.detoks)-i-1)
+        tmp.token_idx = ntok
+        tmp.token_str = detok.decode(ntok)
         res.append(tmp)
-    # update connection from previous
-    for prev in node.prevs:
-        if node in prev.nextlist:
-            prev.nextlist.remove(node)
-        if node.uid in prev.next_ids:
-            prev.next_ids.remove(node.uid)
-        prev.nextlist.append(res[0])
-        prev.next_ids.append(res[0].uid)
-    # update next connection of nodes
-    # TODO not updating the other end
+    
+    # update appropriate connections between nodes
     for i in range(len(res)-1):
         if i<(len(node.detoks)-1):
-            tmpids = [res[i+1].uid]
-            res[i].next_ids = tmpids
-            tmplist = [res[i+1]]
-            res[i].nextlist = tmplist
+            res[i].nextlist = [res[i+1]]
     return res
+
+# make nodelist params consistent with nextlists
+def consistent_nodelist(nlist):
+    # reset next_ids list, prev
+    for node in nlist:
+        node.prevs = []
+        node.next_ids = [n.uid for n in node.nextlist]
+    # update values of prevs to be fine
+    for node in nlist:
+        for n in node.nextlist:
+            n.prevs.append(node)
         
+# we need to go through and convert this into lattices compatible 
+# with the format further into the pipeline, need to tokenize again with BERT
 def tokenize_flat_lattice(gr):
     # get rid of first token, usually en_XX for french
-    #print("original nodes - ", len(gr.keys()))
-    tmplist = gr['root'].nextlist[0].nextlist
-    tmpids = gr['root'].nextlist[0].next_ids
-    gr['root'].nextlist = tmplist
-    gr['root'].next_ids = tmpids
+    if '_' in gr['root'].nextlist[0].token_str:
+        assert len(gr['root'].nextlist)==1
+        gr['root'].nextlist = gr['root'].nextlist[0].nextlist
+        gr['root'].next_ids = [nd.uid for nd in gr['root'].nextlist]
+    # get a flattened canvas of word nodes
     flatlat = get_flat_lattice(gr)
     res = []
-    #print("flatlat - ", len(flatlat))
 
+    consistent_nodelist(flatlat)
+    # convert word canvas into token canvas, update graph
     for f in flatlat:
         res.extend(split_dl_node(f))
-    #print("final detokd - ", len(res))
+
+    # since prevs not handled earlier, reset stuff to be consistent
+    consistent_nodelist(res)
+
     return res
-    # we need to go through and convert this into lattices compatible 
-    # with the format further into the pipeline, need to tokenize again with BERT
+    
     
 # disconnect / throw away node
 def throw_garbage(node, grph, lprevs=False):
@@ -219,6 +243,7 @@ def throw_garbage(node, grph, lprevs=False):
         del grph[node.uid]
         
 # assume that previous nodes are consolidated, 
+# convert token node into word node based on surroundings
 def consolidate_node(node, grph):
     if node.uid not in grph.keys():
         return
@@ -295,6 +320,7 @@ def get_dictlist(grphinp, addnodes=False, compress=False):
         gra = pickle.load(open(grphinp, 'rb'))
     else:
         gra = grphinp
+    # do tokenizer conversion, lay out nodes in flat fashion
     fllat = tokenize_flat_lattice(gra)
     flres = []
     if compress:

@@ -3,7 +3,10 @@ import os
 from transformers import AutoTokenizer
 import argparse
 
-tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base")
+# TODO need to change default back for all other lattices
+# tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base")
+tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
+
 
 def load_save_data(fname):
     f = open(fname, 'rb')
@@ -129,6 +132,7 @@ def get_all_possible_candidates(fname, needbase=True):
         graph = get_graph(BASE+fname)
     else:
         graph = get_graph(fname)
+    # if we only want graphs with less than glim nodes
     scores =  []
     cands = []
     ref = graph.reference
@@ -141,14 +145,10 @@ def get_all_possible_candidates(fname, needbase=True):
                 break
             fullplist.append(p)
             generated+=1
-    #print("num nodes")
-    #print(len(nodeset))
+ 
     nodeset = set()
     fullplist = remove_dups(fullplist)
-    #print("candidates")
-    #print(len(fullplist))
-    #print("ends")
-    #print(len(graph.ends))
+
     if tot%300==0:
         print(tot)
     for plist in fullplist:
@@ -204,7 +204,7 @@ def process_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-dataset', type=str)
     
-    parser.add_argument('-device', type=str, default='cuda:0')
+    parser.add_argument('-device', type=str, default='cuda:2')
     parser.add_argument('-exploded', type=str, default="False")
     parser.add_argument('-path_output', type=str, default="mtn1_fr-en_bfs_recom_2_-1_False_0.4_True_False_4_5_zip_-1_0.0_0.9")
 

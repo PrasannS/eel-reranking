@@ -106,7 +106,7 @@ def explode_df_graphs(inpnames):
         print(ind)
         ind+=1
 
-def explode_graphs(reversedir, newname):
+def explode_graphs(reversedir, newname, nodelim=1000):
     srcbase = "./custom_output/data/"+reversedir+"/"
     newbase = "./outputs/graph_pickles/"+newname+"/"
     graphpaths = os.listdir(srcbase)
@@ -116,9 +116,18 @@ def explode_graphs(reversedir, newname):
     ind = 0
     for g in graphpaths:
         try:
+            with open("./outputs/graph_pickles/"+"nounsum_reversed/"+str(ind), "rb") as file:
+                tmpcheck = pickle.load(file)
+                print(len(tmpcheck.keys()))
+                if len(tmpcheck.keys())>nodelim:
+                    ind+=1
+                    continue
             acands = get_all_possible_candidates(srcbase+g, False)
-            filehandler = open(newbase+str(ind), 'wb') 
-            pickle.dump(acands, filehandler)
+            if acands[0] is not None:
+                filehandler = open(newbase+str(ind), 'wb') 
+                pickle.dump(acands, filehandler)
+            else:
+                print("skip")
         except:
             print("Recursion Failed")
         print(ind)
@@ -132,9 +141,5 @@ if __name__ == "__main__":
     #reverse_df_graphs("french_fnames")
     # russian
     # reverse_save_graphs("sum_xsum_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "nounsum_reversed")
-    explode_graphs("sum_xsum_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "nounsum_exploded")
-    #print("starting french")
-    #explode_df_graphs("french_fnames")
-    #print("starting german")
-    #explode_df_graphs("german_fnames")
+    explode_graphs("sum_xsum_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "nounsum_exploded2", 600)
     

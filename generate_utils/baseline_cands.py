@@ -5,14 +5,14 @@ import argparse
 import src.recom_search.model.mt_data as mt_data
 import pandas as pd
 import time
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
 
 def process_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-method', type=str)
-    parser.add_argument('-device', type=str, default='cuda:0')
+    parser.add_argument('-device', type=str, default='cuda:2')
     parser.add_argument('-dataset', default='fr_en', type=str)
     parser.add_argument('-top_p', type=float, default=0.6)
     parser.add_argument('-num_examples', type=int, default=800)
@@ -166,5 +166,5 @@ if __name__ == "__main__":
 
 
 # select device
-#device = "cuda:0" if torch.cuda.is_available() else "cpu"
+#device = "cuda:2" if torch.cuda.is_available() else "cpu"
 

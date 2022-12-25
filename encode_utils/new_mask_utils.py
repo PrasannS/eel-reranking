@@ -42,7 +42,11 @@ def mask_prep_canv(canv):
         node.prevs = []
     for i in range(len(canv)):
         for n in canv[i].nextlist:
-            assert n in canv
+            # maybe a byproduct of weird empty-token thing?
+            if len(canv[i].nextlist)==1:
+                if n not in canv:
+                    print("unused tok")
+                    continue
             n.prevs.append(canv[i])
     # we're taking in DLReverseNodes
     ind = 0

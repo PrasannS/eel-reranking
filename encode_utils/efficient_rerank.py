@@ -6,7 +6,7 @@ import torch.nn as nn
 from transformers import AutoModel
 from .new_flatten_lattice import get_dictlist, detok
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
 xlm_tok = detok
 
@@ -206,8 +206,8 @@ def dynamic_path(prepnodes, sco_funct, posapp, usednodes, norm):
     for e in endings:
         # make sure we hit minimum length proportional to input
         if len(bplist[e])>(MINPROP)*posapp:
-            if bscolist[e]>bestsco:
-                bestsco = bscolist[e]
+            if (bscolist[e]/len(bplist[e]))>bestsco:
+                bestsco = bscolist[e]/len(bplist[e])
                 bestpath = bplist[e]
     if len(bestpath)==0:
         lenlist = [len(bplist[e]) for e in endings]
