@@ -70,15 +70,16 @@ def metrics_mapping (metric, tset):
 
 if __name__=="__main__":
     
-    savefile = "nounxsumlargeexplodev2.csv"
-    #metrics = ['comet', 'cqe', 'posthoc', 'dupcqe']
+    savefile = "nounxsumbeam50v2.csv"
+    #metrics = ['dupcqe', 'comet', 'cqe', 'posthoc']
     metrics = ['utnoun', 'unique_nouns']
 
     if os.path.exists("outputs/score_csvs/"+savefile):
         tset = pd.read_csv("outputs/score_csvs/"+savefile, index_col=0)
     else:
-        tset = make_sample_test("nounsum_exploded2/", -1, 600)
-    
+        tset = make_sample_test("exploded_xsum_beam50/", -1, -1)
+    print("Sanity check")
+    print(tset.loc[0])
     tset = tset.dropna()
     print("size of dset: ", len(tset))
     # generate necessary scores

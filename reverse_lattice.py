@@ -140,6 +140,16 @@ if __name__ == "__main__":
     #reverse_df_graphs("german_fnames")
     #reverse_df_graphs("french_fnames")
     # russian
-    # reverse_save_graphs("sum_xsum_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "nounsum_reversed")
-    explode_graphs("sum_xsum_bfs_recom_4_80_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "nounsum_exploded2", 600)
-    
+    """
+    reverse_save_graphs("sum_xsum_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_xsum_beam12")
+    explode_graphs("sum_xsum_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_xsum_beam12", 10000)
+
+    reverse_save_graphs("sum_xsum_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_xsum_beam50")
+    explode_graphs("sum_xsum_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_xsum_beam50", 10000)
+    """
+
+    #reverse_save_graphs("mtn1_fr-en_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_mtfren_beam12")
+    #explode_graphs("mtn1_fr-en_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_mtfren_beam12", 10000)
+
+    reverse_save_graphs("mtn1_fr-en_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_mtfren_beam50")
+    explode_graphs("mtn1_fr-en_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_mtfren_beam50", 10000)

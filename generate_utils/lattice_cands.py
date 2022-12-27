@@ -3,10 +3,9 @@ import os
 from transformers import AutoTokenizer
 import argparse
 
-# TODO need to change default back for all other lattices
-# tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base")
-tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
-
+# TODO switch need to change default back for all other lattices
+tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base")
+# tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
 
 def load_save_data(fname):
     f = open(fname, 'rb')

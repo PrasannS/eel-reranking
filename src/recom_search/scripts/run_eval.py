@@ -7,14 +7,10 @@ import pickle
 from src.recom_search.model.model_output import SearchModelOutput
 from src.recom_search.model.model_bfs import  bfs
 
-import pandas as pd
-from collections import defaultdict
 from src.recom_search.model.baseline import baseline_recomb_sample, recomb_baseline
 from src.recom_search.model.generic_search import GenericSearch
 from src.recom_search.model.model_bfs_zip import bfs_rcb_any
 from src.recom_search.model.exec_setup import tokenizer, model, dataset, dec_prefix, args, dict_io
-
-import numpy as np
 
 from src.recom_search.model.util import *
 
@@ -179,7 +175,7 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
         res1, res2 = list(res1), list(res2)
         dataset = zip(res1, res2)
     logging.info(f"Truncate dataset to {nexample} examples")
-    #logging.info(f"Truncate dataset to {len(list(enumerate(tqdm(dataset))))} examples")
+
     for idx, example in enumerate(tqdm(dataset)):
         cnt += 1
         if args.task.startswith('mt'):
@@ -192,11 +188,15 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
             doc_id = example['id']
             ref_sum = example['highlights']
         elif args.dataset == 'xsum':
-            document = example['document']
+            # TODO switch back, hardcoding here
+            #document = example['document']
+            document = example[0]
             sents = document.split('\n')
             inp = "\n".join(sents[:10])[:5000]
-            ref_sum = example['summary']
-            doc_id = example['id']
+            ref_sum = example[1]
+            #ref_sum = example['summary']
+            #doc_id = example['id']
+            doc_id = idx
         elif args.dataset == 'custom':
             document = example[0]
             ref_sum = example[1]

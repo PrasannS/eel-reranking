@@ -9,6 +9,7 @@ from transformers import AutoConfig, AutoModelForSeq2SeqLM,AutoTokenizer
 import os
 import random
 from . import mt_data
+import pandas as pd
 
 random.seed(2021)
 
@@ -26,10 +27,10 @@ def render_address(root = 'output') ->dict:
     return d
 
 def read_mt_data(path='/mnt/data1/prasann/latticegen/lattice-generation/mt-data/use', name='en-de'):
-    if 'bigboi' in name:
-        datadf = mt_data.load_generate_set(100, "fr_en")
-        slines = list(datadf['fr'])
-        tlines = list(datadf['en'])
+    if 'fr' in name:
+        datadf = pd.read_csv("/mnt/data1/prasann/latticegen/lattice-generation/mt-data/frenchset.csv")
+        slines = list(datadf['src'])
+        tlines = list(datadf['ref'])
         assert len(slines)==len(tlines)
         assert "" not in slines
         assert "" not in tlines
@@ -75,7 +76,13 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
     elif task == 'sum':
         logging.info('Loading dataset')
         if dataset == 'xsum':
-            dataset = load_dataset("xsum", split='validation')
+            print("using hard coded dataset")
+            # TODO switch I am hard-coding this
+            datadf = pd.read_csv("/mnt/data1/prasann/latticegen/lattice-generation/mt-data/summarytestset.csv")
+            slines = list(datadf['src'])
+            tlines = list(datadf['ref'])
+            dataset = zip(slines, tlines)
+            #dataset = load_dataset("xsum", split='validation')
         elif dataset == 'cnndm':
             raise NotImplementedError("not supported")
             dataset = load_dataset("cnn_dailymail", split='validation')
@@ -104,6 +111,7 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
             "facebook/mbart-large-50-many-to-one-mmt", )
         tokenizer = MBart50TokenizerFast.from_pretrained(
             "facebook/mbart-large-50-many-to-one-mmt")
+
         # dataset should be like "xx-en"
         assert dataset.endswith('-en')
         src_lang = dataset[:2]
