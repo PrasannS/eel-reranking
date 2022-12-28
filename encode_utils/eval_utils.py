@@ -36,7 +36,7 @@ def lattice_multi_rerank(ind, n, scofunct, afunc, args):
     # get graph, get the "best candidate"
     graph = pickle.load(open(base+str(ind), 'rb'))
     nexplode = explode_df[explode_df['ref']==graph['ref']].reset_index()
-    #print(len(nexplode))
+
     if len(nexplode)==0:
         return None
     bestcand = np.argmax(list(nexplode[goldmetric]))

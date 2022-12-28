@@ -9,6 +9,7 @@ from transformers import AutoTokenizer
 import pandas as pd
 import numpy as np
 import torch
+from generate_tables import metrics_mapping
 import random
 device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
@@ -87,10 +88,22 @@ if __name__=="__main__":
     # setup / load model
     encodemod = get_effrerank_model("noun")
     xlm_tok = AutoTokenizer.from_pretrained("xlm-roberta-base")
-    # postproc_paths, orig_paths = explode_path(17, True)
-    
-    msk, snts, pids, scos, hyps = get_ind_result(17)
 
-    print(len(pids[0]))
+    base = "outputs/graph_pickles/frtest_reversed/"
+    noun_explode = pd.read_csv("outputs/score_csvs/nounlargeexplodev1.csv")
+
+    smallset = noun_explode.loc[:3]
+    smallset['utnounold'] = list(smallset['utnoun'])
+    smallset = smallset.drop(columns=['utnoun'])
+
+    metrics_mapping('utnoun', smallset)
+
+    newsco = torch.sum(get_hyp_sco(smallset['hyp'][0]))
+
+    print("here now")
+
+    # postproc_paths, orig_paths = explode_path(17, True)    
+    # msk, snts, pids, scos, hyps = get_ind_result(17)
+    # print(len(pids[0]))
 
 
