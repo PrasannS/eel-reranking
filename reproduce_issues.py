@@ -41,6 +41,7 @@ def explode_helper(prevpath, node, apaths, tok):
             explode_helper(prevpath, n, apaths, tok)
     prevpath.pop()
 
+"""
 # get token level scores from model
 def get_hyp_sco(inphyp, posids=None):
     
@@ -59,6 +60,26 @@ def get_hyp_sco(inphyp, posids=None):
     tmppred = predout['score']
     #norm = predout['norm']
     return tmppred
+"""
+
+# get token level scores from model, given hypothesis and input source
+def get_hyp_sco(inphyp, inpsrc, args):
+    tok = args['tok']
+    dev = args['device']
+    model = args['model']
+
+    # calculate inputs
+    tokens = tok(inphyp, return_tensors='pt', truncation=True).to(dev)
+    tokens = tokens.input_ids
+    positionids = None
+    toked_inp = tok(inpsrc, return_tensors="pt").to(dev)
+    # get causal mask
+    tmpmask = torch.tril(torch.ones(len(tokens[0]), len(tokens[0]))).unsqueeze(0).to(dev)
+    # run through model
+    predout = model(toked_inp.input_ids, toked_inp.attention_mask, tokens, positionids, \
+        tmpmask)
+    return predout['score']
+
 
 # TODO do a validation that old score generation way and current have same bests
 def get_ind_result(ind):
@@ -81,7 +102,30 @@ def get_ind_result(ind):
     return mask, sents, posids, pred, list(texplode['hyp'])
 
 if __name__=="__main__":
-    
+    # TODO do this for everything
+    mtb12 = pd.read_csv("outputs/score_csvs/mtfrenbeam12v2.csv", index_col=0)
+    encodemod = get_effrerank_model("comstyle")
+    encodemod.eval()
+    xlm_tok = AutoTokenizer.from_pretrained("xlm-roberta-base")
+    argsinp = {
+        'tok':xlm_tok,
+        'model':encodemod,
+        'device':device
+    }
+    #encodemod.predict()
+    tmpset = mtb12.loc[:3]
+    tmpset = tmpset.rename(columns={'dupcqe':"dco2"})
+
+    metrics_mapping("dupcqe", tmpset)
+    inex = tmpset.loc[0]
+    sco = get_hyp_sco(inex['hyp'], inex['src'], argsinp)
+    print(torch.sum(sco))
+
+    """
+    NOUN MODEL CHECK
+    base = "outputs/graph_pickles/frtest_reversed/"
+    noun_explode = pd.read_csv("outputs/score_csvs/nounlargeexplodev1.csv")
+
     base = "outputs/graph_pickles/frtest_reversed/"
     noun_explode = pd.read_csv("outputs/score_csvs/nounlargeexplodev1.csv")
 
@@ -89,8 +133,7 @@ if __name__=="__main__":
     encodemod = get_effrerank_model("noun")
     xlm_tok = AutoTokenizer.from_pretrained("xlm-roberta-base")
 
-    base = "outputs/graph_pickles/frtest_reversed/"
-    noun_explode = pd.read_csv("outputs/score_csvs/nounlargeexplodev1.csv")
+    
 
     smallset = noun_explode.loc[:3]
     smallset['utnounold'] = list(smallset['utnoun'])
@@ -101,6 +144,10 @@ if __name__=="__main__":
     newsco = torch.sum(get_hyp_sco(smallset['hyp'][0]))
 
     print("here now")
+    """
+    
+
+    
 
     # postproc_paths, orig_paths = explode_path(17, True)    
     # msk, snts, pids, scos, hyps = get_ind_result(17)

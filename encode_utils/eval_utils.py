@@ -25,6 +25,32 @@ def get_hyp_sco(inphyp, inpsrc, args):
         tmpmask)
     return predout['score']
 
+# TODO put elsewhere - make batched version of get_hyp_sco (TODO also do dataloader setup or smth)
+def causalmask (a, dev):
+    masksdef = torch.zeros((a.shape[0], a.shape[1],a.shape[1]), device=dev)
+    for i in range(len(a)):
+        lim = int(torch.sum(a[i]))
+        masksdef[i, :lim, :lim] = torch.tril(torch.ones((lim, lim)))
+    return masksdef
+
+# get scores given a batch of src, hypothesis pairs
+def batch_hyp_sco(srcs, hyps, args):
+    tok = args['tok']
+    dev = args['device']
+    model = args['model']
+    
+    out_toks = tok(hyps, return_tensors='pt', padding=True, truncation=True).to(dev)
+    out_tokens = out_toks.input_ids
+    hypmask = causalmask(out_toks.attention_mask, dev)
+    
+    positionids = None
+    toked_inp = tok(srcs, return_tensors="pt").to(dev)
+    
+    predout = model(toked_inp.input_ids, toked_inp.attention_mask, out_tokens, positionids, \
+        hypmask)
+    
+    return torch.sum(predout['score'], 1)#, toked_inp, out_tokens, positionids, hypmask
+
 # test out reranking multiple EEL outputs (observe improvements)
 def lattice_multi_rerank(ind, n, scofunct, afunc, args):
     explode_df = args['explode_df']
@@ -51,14 +77,16 @@ def lattice_multi_rerank(ind, n, scofunct, afunc, args):
     ascos = []
     ahyps = []
     numnodes = 0
+    # TODO changing up to use batching
     for i in range(n): 
         running = True
         while running:
             try:
                 graph = pickle.load(open(base+str(ind), 'rb'))
                 # generate with model
+                # TODO do we assume noun here?
                 bestpath , flattened, pnodes, mask, sents, posids, pred, _, \
-                    flnodes, dpath, beplist, besclist, totnodes, bsco = run_comstyle(graph, model, scofunct, "noun", {'afunc':afunc}, True)
+                    flnodes, dpath, beplist, besclist, totnodes, bsco = run_comstyle(graph, model, scofunct, goldmetric, {'afunc':afunc}, True)
                 predhyp = bestpath[0][4:]
                 # after deg reduction can maybe just use scores as is? (posids could be issue)
                 # TODO do an assertion for this

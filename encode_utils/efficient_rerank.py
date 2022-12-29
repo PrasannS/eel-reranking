@@ -231,6 +231,56 @@ def get_effrerank_model(keystr):
     reflessmod.eval()
     return reflessmod
 
+MAX_TOKS = 512
+# run pipeline, but we use comet-style model 
+def run_comstyle_multi(graph, model, scofunct, outfile, params, extra=False, nummasks=1, verbose=False):
+    # get converted, flattened lattice
+    flattened, flnodes = get_dictlist(graph, True)
+    totnodes = len(flnodes)
+
+    
+    # make sure that we're only working with the tokens that fit into canvas
+    truncflat = flattened[:MAX_TOKS]
+    sents, posids = create_inputs([truncflat])
+    # NOTE this is not the same for BERT
+    posids = posids + 2
+    
+    # type of model is ReflessEval, input format of (everything)
+    if "noun" in outfile:
+        toked_inp = xlm_tok(["noun"], return_tensors="pt").to(device)
+    else:
+        toked_inp = xlm_tok([graph['input']], return_tensors="pt").to(device)
+
+    blist = []
+    slist = []
+    usednodes = []
+    msks = []
+
+    # get n shots worth of masks
+    for i in range(nummasks):
+        msk = get_causal_mask(flnodes, 0, params, False)
+        msks.append(msk)
+        # src_input_ids, src_attention_mask, mt_input_ids, mt_pos_ids, mt_attention_mask
+        with torch.no_grad():
+            # TODO can make more efficient by shifting .to calls
+            # TODO increase efficiency with batching
+            predout = model(toked_inp.input_ids, toked_inp.attention_mask, sents, posids, \
+                msk.unsqueeze(0).to(device))
+            pred = predout['score']
+            norm = predout['norm']
+
+        # multiple rounds for diverse decoding, TODO time optimization (don't fill up canvas) if not already?
+        pnodes = prepare_nodes([flnodes[:512]], pred, 0)
+        dpath, bsco, beplist, besclist = dynamic_path(pnodes[0], scofunct, 0, usednodes, norm)
+
+        usednodes.extend([dp for dp in dpath])
+        blist.append(xlm_tok.decode([dp.token_idx for dp in dpath]))
+        slist.append(bsco)
+        
+    # verbose return for debugging
+    if extra:
+        return blist , flattened, pnodes, msks, sents, posids, pred, 0, flnodes, dpath, beplist, besclist, totnodes, slist
+    return blist
 
 MAX_TOKS = 512
 # run pipeline, but we use comet-style model 
@@ -244,7 +294,7 @@ def run_comstyle(graph, model, scofunct, outfile, params, extra=False, numruns=1
     # TODO validate that there isn't weirdness here
     mask = get_causal_mask(flnodes, 0, params, False)
     # make sure that we're only working with the tokens that fit into canvas
-    truncflat = flattened[:512]
+    truncflat = flattened[:MAX_TOKS]
     sents, posids = create_inputs([truncflat])
     # TODO change this back for bert?
     posids = posids + 2

@@ -33,9 +33,9 @@ class DLReverseNode():
         return self.token_str
 
 base = "frtest_reversed/"
-toker = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
+#toker = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
 # TODO SWITCH for MT vs XSUM lattices
-#toker = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
+toker = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
 detok = AutoTokenizer.from_pretrained("xlm-roberta-base")
 
 # TODO later on just move this to the initial graph reversal
@@ -251,8 +251,8 @@ def consolidate_node(node, grph):
     # check relationship with all previous nodes
     for prev in node.prevs:
         # it's a word boundary, no changes
-        comb = toker.decode(prev.token_idx+node.token_idx)
-        if " " in comb or "</s>" in comb:
+        comb = toker.decode(prev.token_idx+node.token_idx).strip()
+        if " " in comb or "s>" in comb:
             continue
         else:
             # need to make new node, add necessary stuff
@@ -284,12 +284,6 @@ def consolidate_node(node, grph):
             # prev now garbage, delete it
             if len(prev.nextlist)==0:
                 throw_garbage(prev, grph, True)
-            """
-            if comb=="China’":
-                print("nexts after", len(tmp.nextlist))
-                print(tmp.uid)
-                print(tmp.nextlist[0].prevs[1].uid)
-            """
             
     for g in goneprevs:
         node.prevs.remove(g)

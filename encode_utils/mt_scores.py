@@ -155,8 +155,8 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
         reflessmod = lfc(DSET_CHKS[sco], False).to(device)
         reflessmod.eval()
         starttime = time.time()
-        with torch.no_grad():
-            scos = get_cometqe_scores(hyps, srcs, reflessmod)
+        #with torch.no_grad():
+        scos = get_cometqe_scores(hyps, srcs, reflessmod)
         totaltime = round((time.time() - starttime), 2)
         print("TOOK TIME ", totaltime)
         scos = scos[0]
@@ -168,6 +168,7 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
             comet = load_from_checkpoint(comet_path).to(device)
         except:
             comet = load_from_checkpoint(comet_path, False).to(device)
+        comet.eval()
         starttime = time.time()
         scos = get_comet_scores(hyps, srcs, refs, comet)
         totaltime = round((time.time() - starttime), 2)
