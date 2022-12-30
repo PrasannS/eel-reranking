@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from generate_tables import metrics_mapping
 import random
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 # setup / load model
 xlm_tok = AutoTokenizer.from_pretrained("xlm-roberta-base")

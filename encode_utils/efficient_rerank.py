@@ -6,7 +6,7 @@ import torch.nn as nn
 from transformers import AutoModel
 from .new_flatten_lattice import get_dictlist, detok
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 xlm_tok = detok
 
@@ -226,8 +226,7 @@ def get_effrerank_model(keystr):
         reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_38/checkpoints/epoch=3-step=140000.ckpt", True).to(device)
     elif keystr == "noun":
         reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_44/checkpoints/epoch=9-step=40000.ckpt", True).to(device)
-
-
+        
     reflessmod.eval()
     return reflessmod
 
@@ -260,17 +259,24 @@ def run_comstyle_multi(graph, model, scofunct, outfile, params, extra=False, num
     for i in range(nummasks):
         msk = get_causal_mask(flnodes, 0, params, False)
         msks.append(msk)
-        # src_input_ids, src_attention_mask, mt_input_ids, mt_pos_ids, mt_attention_mask
-        with torch.no_grad():
-            # TODO can make more efficient by shifting .to calls
-            # TODO increase efficiency with batching
-            predout = model(toked_inp.input_ids, toked_inp.attention_mask, sents, posids, \
-                msk.unsqueeze(0).to(device))
-            pred = predout['score']
-            norm = predout['norm']
+    # src_input_ids, src_attention_mask, mt_input_ids, mt_pos_ids, mt_attention_mask
+    inpshape = nummasks, toked_inp.input_ids.shape[1], toked_inp.input_ids.shape[2]
+    hypshape = nummasks, sents.shape[1], sents.shape[2]
+    with torch.no_grad():
+        # TODO can make more efficient by shifting .to calls
+        # TODO increase efficiency with batching (also ensure mask gen on device)
+        # pass everything in one batch
+        predout = model(toked_inp.input_ids.expand(inpshape), toked_inp.attention_mask.expand(inpshape) \
+                    , sents.expand(hypshape), posids.expand(hypshape), torch.stack(msk).to(device))
+        # undo normalization since that happens later anyways
+        pred = predout['score'] * predout['norm']
+        norm = predout['norm']
+    
+    # go through all sets of scores, do dynamic programming on each (TODO can we, should we simplify further)
+    for p in range(len(pred)):
 
         # multiple rounds for diverse decoding, TODO time optimization (don't fill up canvas) if not already?
-        pnodes = prepare_nodes([flnodes[:512]], pred, 0)
+        pnodes = prepare_nodes([flnodes[:512]], pred[p], 0)
         dpath, bsco, beplist, besclist = dynamic_path(pnodes[0], scofunct, 0, usednodes, norm)
 
         usednodes.extend([dp for dp in dpath])
@@ -279,7 +285,7 @@ def run_comstyle_multi(graph, model, scofunct, outfile, params, extra=False, num
         
     # verbose return for debugging
     if extra:
-        return blist , flattened, pnodes, msks, sents, posids, pred, 0, flnodes, dpath, beplist, besclist, totnodes, slist
+        return blist, flattened, pnodes, msks, sents, posids, pred, 0, flnodes, dpath, beplist, besclist, totnodes, slist
     return blist
 
 MAX_TOKS = 512

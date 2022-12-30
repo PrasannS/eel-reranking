@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 import pandas as pd
 import re
-from encode_utils.efficient_rerank import run_comstyle
+from encode_utils.efficient_rerank import run_comstyle_multi, run_comstyle
 
 # get token level scores from model, given hypothesis and input source
 def get_hyp_sco(inphyp, inpsrc, args):
@@ -44,7 +44,7 @@ def batch_hyp_sco(srcs, hyps, args):
     hypmask = causalmask(out_toks.attention_mask, dev)
     
     positionids = None
-    toked_inp = tok(srcs, return_tensors="pt").to(dev)
+    toked_inp = tok(srcs, return_tensors="pt", padding=True, truncation=True).to(dev)
     
     predout = model(toked_inp.input_ids, toked_inp.attention_mask, out_tokens, positionids, \
         hypmask)
@@ -67,46 +67,31 @@ def lattice_multi_rerank(ind, n, scofunct, afunc, args):
         return None
     bestcand = np.argmax(list(nexplode[goldmetric]))
     bestcand = nexplode.iloc[bestcand]
+    # TODO should be able to just use scores now? maybe assert at some point
     if nounmode:
         goldsco = get_hyp_sco(bestcand['hyp'], "noun", args)
     else:
         goldsco = get_hyp_sco(bestcand['hyp'], bestcand['src'], args)
     goldsco = torch.sum(goldsco[0])
-    bpred = -100
-    bhyp = ""
-    ascos = []
-    ahyps = []
+
     numnodes = 0
-    # TODO changing up to use batching
-    for i in range(n): 
-        running = True
-        while running:
-            try:
-                graph = pickle.load(open(base+str(ind), 'rb'))
-                # generate with model
-                # TODO do we assume noun here?
-                bestpath , flattened, pnodes, mask, sents, posids, pred, _, \
-                    flnodes, dpath, beplist, besclist, totnodes, bsco = run_comstyle(graph, model, scofunct, goldmetric, {'afunc':afunc}, True)
-                predhyp = bestpath[0][4:]
-                # after deg reduction can maybe just use scores as is? (posids could be issue)
-                # TODO do an assertion for this
-                if args["efficient"]:
-                    hypsco = bsco[0]
-                else:
-                    if nounmode:
-                        hypsco = torch.sum(get_hyp_sco(predhyp, "noun", args)[0])
-                    else:
-                        hypsco = torch.sum(get_hyp_sco(predhyp, bestcand['src'], args)[0])
-                if hypsco>bpred:
-                    bpred = hypsco
-                    bhyp = predhyp
-                ascos.append(hypsco)
-                ahyps.append(predhyp)
-                numnodes = len(flattened)
-                running = False
-            except:
-                print("weird fail")
-    return bpred, bhyp, goldsco, bestcand['hyp'], ascos, ahyps, numnodes, bestcand['src'], bestcand['ref']
+    graph = pickle.load(open(base+str(ind), 'rb'))
+    # generate with model
+    bestpath , flattened, pnodes, mask, sents, posids, pred, _, \
+        flnodes, dpath, beplist, besclist, totnodes, bsco = run_comstyle_multi(graph, model, scofunct, goldmetric, {'afunc':afunc}, True, n)
+    assert graph['input']==bestcand['src']
+    # get all appropriate inps
+    ahyps = [bp[4:] for bp in bestpath]
+    if nounmode:
+        srcs = ["noun"]*len(ahyps)
+    else:
+        srcs = [graph['input']]*len(ahyps)
+    # Rescore everything, send back result (TODO can we use dp scores instead?)
+    ascos = batch_hyp_sco(srcs, ahyps, args)
+    numnodes = len(flattened)
+    bestind = np.argmax(list(ascos))
+
+    return ascos[bestind], ahyps[bestind], goldsco, bestcand['hyp'], ascos, ahyps, numnodes, bestcand['src'], bestcand['ref']
 
 # get multiple things with the lattice, rerank on each (not optimized, so it is a bit slow)
 def all_lattice_multi(n, scofunct, afunc, args):
@@ -124,9 +109,9 @@ def all_lattice_multi(n, scofunct, afunc, args):
             print(cnt, " ", i, " ", outval[0], " ", outval[2], " ")
             pdistr.append({
                 'hyp':outval[1],
-                'hypsco':outval[0],
+                'hypsco':float(outval[0]),
                 'gold':outval[3],
-                'goldsco':outval[2],
+                'goldsco':float(outval[2]),
                 'ascos':[float(f) for f in outval[4]],
                 'ahyps':outval[5],
                 'numnodes':outval[6],

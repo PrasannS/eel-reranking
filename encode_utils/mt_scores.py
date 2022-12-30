@@ -7,13 +7,41 @@ from comet import download_model, load_from_checkpoint
 from generate_utils.distill_comet import load_distill_model, run_distill_comet
 
 from bleurt import score
-import sys
-sys.path.insert(1, '/mnt/data1/prasann/latticegen/lattice-generation/COMET')
+#import sys
+#sys.path.insert(1, '/mnt/data1/prasann/latticegen/lattice-generation/COMET')
 csv.field_size_limit(sys.maxsize)
-from COMET.comet.models.regression.referenceless import ReferencelessRegression
-from COMET.comet.models import load_from_checkpoint as lfc
+#from COMET.comet.models.regression.referenceless import ReferencelessRegression
+#from COMET.comet.models import load_from_checkpoint as lfc
+from encode_utils.efficient_rerank import get_effrerank_model
+from encode_utils.eval_utils import batch_hyp_sco
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+def get_comstyle_correct(srcs, hyps, model, device, bsize = 32):
+
+    maxl = len(srcs)
+    assert len(srcs)==len(hyps)
+    inptok = AutoTokenizer.from_pretrained("xlm-roberta-base")
+    args = {
+        'tok':inptok,
+        'model':model, 
+        'device':device
+    }
+    allsco = []
+    ind = 0 
+    LOG_STEPS = 20
+    while ind<maxl:
+        if (ind/32)%LOG_STEPS == 0:
+            print(100*(ind/maxl),"%")
+        # get all appropriate scores
+        try:
+            sco = batch_hyp_sco(srcs[ind:ind+bsize], hyps[ind:ind+bsize], args)
+        except:
+            sco = [0]*len(srcs[ind:ind+bsize])
+            print("encountered bug at index ", ind)
+        allsco.extend([float(m) for m in sco])
+        ind+=bsize
+    return allsco
 
 def get_mbart_nll(cand, ind, inptok, labtok, mod, dev):
     
@@ -46,7 +74,7 @@ def get_mbart_nllsco(inpu, outpu, inptok, labtok, mod, dev):
     return output.loss
 
 def rescore_cands(dset, hyplist, srclist):
-    device = "cuda:2" if torch.cuda.is_available() else "cpu"
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
     if "de" in dset:
         mname = "facebook/mbart-large-50-one-to-many-mmt"
         src_l = "en_XX"
@@ -152,14 +180,20 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
         del cometqe_path
         return scos
     if dset == "comstyle":
-        reflessmod = lfc(DSET_CHKS[sco], False).to(device)
+        # TODO this is new, now using batched version of eval model
+        if "noun" in sco:
+            reflessmod = get_effrerank_model("noun")
+        # use mt model (causal)
+        else:
+            reflessmod = get_effrerank_model("comstyle")
+        #reflessmod = lfc(DSET_CHKS[sco], True).to(device)
         reflessmod.eval()
         starttime = time.time()
         #with torch.no_grad():
-        scos = get_cometqe_scores(hyps, srcs, reflessmod)
+        scos = get_comstyle_correct(srcs, hyps, reflessmod, device)
         totaltime = round((time.time() - starttime), 2)
         print("TOOK TIME ", totaltime)
-        scos = scos[0]
+        #scos = scos[0]
         del reflessmod 
         return scos
     if sco=='comet':
