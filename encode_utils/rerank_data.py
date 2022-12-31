@@ -40,6 +40,10 @@ def rerank_df(df, scofunct, scoparam):
     reflist = list(df['ref'].unique())
     rrdf = []
     for r in reflist:
+        if type(r) is not str:
+            continue
+        if len(r)<5:
+            continue
         # extract dataframe corresponding to smth
         exsamps = df[df['ref']==r]
         rrdf.append(scofunct(exsamps, scoparam[0], scoparam[1]))

@@ -88,6 +88,7 @@ def lattice_multi_rerank(ind, n, scofunct, afunc, args):
         srcs = [graph['input']]*len(ahyps)
     # Rescore everything, send back result (TODO can we use dp scores instead?)
     ascos = batch_hyp_sco(srcs, ahyps, args)
+    ascos = [float(a) for a in ascos]
     numnodes = len(flattened)
     bestind = np.argmax(list(ascos))
 

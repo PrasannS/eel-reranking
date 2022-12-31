@@ -6,7 +6,7 @@ import torch.nn as nn
 from transformers import AutoModel
 from .new_flatten_lattice import get_dictlist, detok
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
 xlm_tok = detok
 
@@ -146,18 +146,18 @@ def topo_recurse(curid, toplist, visited, graph):
 # take in list of truncnodes, sort for dynamic programming
 def prepare_nodes(truncnodes, scores, padd):
     ind = 0
-    for p in range(len(truncnodes)):
-        # get rid of this later if we decide to have multiple canvi
-        assert len(truncnodes[p])<=512
-        for i in range(min(len(truncnodes[p]),512)):
-            # get score after offset (we only get for decoded stuff)
-            # TODO do some kind of assert
-            truncnodes[p][i].score = scores[p][i+padd]
+
+    #for p in range(len(truncnodes)):
+    # get rid of this later if we decide to have multiple canvi
+    #    assert len(truncnodes[p])<=512
+    for i in range(min(len(truncnodes[0]),512)):
+        # get score after offset (we only get for decoded stuff)
+        # TODO do some kind of assert
+        truncnodes[0][i].score = scores[i+padd]
     
-    result = []
-    for trunc in truncnodes:
-        result.append(topo_sort_nodes(trunc))
-        
+    result = [topo_sort_nodes(truncnodes[0])]
+    #for trunc in truncnodes:
+    #   result.append())    
     for trunc in result:
         dpos = 0
         for node in trunc:
@@ -257,17 +257,18 @@ def run_comstyle_multi(graph, model, scofunct, outfile, params, extra=False, num
 
     # get n shots worth of masks
     for i in range(nummasks):
-        msk = get_causal_mask(flnodes, 0, params, False)
-        msks.append(msk)
+        msks.append(get_causal_mask(flnodes, 0, params, False))
     # src_input_ids, src_attention_mask, mt_input_ids, mt_pos_ids, mt_attention_mask
-    inpshape = nummasks, toked_inp.input_ids.shape[1], toked_inp.input_ids.shape[2]
-    hypshape = nummasks, sents.shape[1], sents.shape[2]
+    assert len(sents.shape)==2
+    assert len(toked_inp.input_ids.shape)==2
+    inpshape = nummasks, toked_inp.input_ids.shape[1]
+    hypshape = nummasks, sents.shape[1]
     with torch.no_grad():
         # TODO can make more efficient by shifting .to calls
         # TODO increase efficiency with batching (also ensure mask gen on device)
         # pass everything in one batch
         predout = model(toked_inp.input_ids.expand(inpshape), toked_inp.attention_mask.expand(inpshape) \
-                    , sents.expand(hypshape), posids.expand(hypshape), torch.stack(msk).to(device))
+                    , sents.expand(hypshape), posids.expand(hypshape), torch.stack(msks).to(device))
         # undo normalization since that happens later anyways
         pred = predout['score'] * predout['norm']
         norm = predout['norm']
@@ -323,7 +324,7 @@ def run_comstyle(graph, model, scofunct, outfile, params, extra=False, numruns=1
     # multiple rounds for diverse decoding
     for decround in range(numruns):
         # TODO make sure format's still fine
-        pnodes = prepare_nodes([flnodes[:512]], pred, 0)
+        pnodes = prepare_nodes([flnodes[:512]], pred[0], 0)
         dpath, bsco, beplist, besclist = dynamic_path(pnodes[0], scofunct, 0, usednodes, norm)
 
         usednodes.extend([dp for dp in dpath])

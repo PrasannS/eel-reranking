@@ -1,5 +1,5 @@
 import torch
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 from transformers import AutoTokenizer
 import pickle
 import copy
@@ -33,9 +33,9 @@ class DLReverseNode():
         return self.token_str
 
 base = "frtest_reversed/"
-#toker = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
+toker = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
 # TODO SWITCH for MT vs XSUM lattices
-toker = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
+#toker = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
 detok = AutoTokenizer.from_pretrained("xlm-roberta-base")
 
 # TODO later on just move this to the initial graph reversal

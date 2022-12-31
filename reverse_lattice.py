@@ -151,5 +151,14 @@ if __name__ == "__main__":
     #reverse_save_graphs("mtn1_fr-en_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_mtfren_beam12")
     #explode_graphs("mtn1_fr-en_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_mtfren_beam12", 10000)
 
-    reverse_save_graphs("mtn1_fr-en_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_mtfren_beam50")
-    explode_graphs("mtn1_fr-en_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_mtfren_beam50", 10000)
+    reverse_save_graphs("mt1n_en-de_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_mtende_beam12")
+    explode_graphs("mt1n_en-de_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_mtende_beam12", 10000)
+
+    reverse_save_graphs("mt1n_en-de_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_mtende_beam50")
+    explode_graphs("mt1n_en-de_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_mtende_beam50", 10000)
+
+    reverse_save_graphs("mt1n_en-ru_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_mtenru_beam12")
+    explode_graphs("mt1n_en-ru_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_mtenru_beam12", 10000)
+
+    reverse_save_graphs("mt1n_en-ru_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_mtenru_beam50")
+    explode_graphs("mt1n_en-ru_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_mtenru_beam50", 10000)

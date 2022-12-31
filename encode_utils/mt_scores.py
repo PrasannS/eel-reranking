@@ -15,7 +15,7 @@ csv.field_size_limit(sys.maxsize)
 from encode_utils.efficient_rerank import get_effrerank_model
 from encode_utils.eval_utils import batch_hyp_sco
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
 def get_comstyle_correct(srcs, hyps, model, device, bsize = 32):
 
@@ -74,7 +74,7 @@ def get_mbart_nllsco(inpu, outpu, inptok, labtok, mod, dev):
     return output.loss
 
 def rescore_cands(dset, hyplist, srclist):
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device = "cuda:2" if torch.cuda.is_available() else "cpu"
     if "de" in dset:
         mname = "facebook/mbart-large-50-one-to-many-mmt"
         src_l = "en_XX"
@@ -100,7 +100,10 @@ def rescore_cands(dset, hyplist, srclist):
         if i%500==0:
             print(i)
         with torch.no_grad():
-            result.append(float(get_mbart_nllsco(srclist[i], hyplist[i], inptok, labtok, mod, device)))
+            try:
+                result.append(float(get_mbart_nllsco(srclist[i], hyplist[i], inptok, labtok, mod, device)))
+            except:
+                result.append(0)
     
         #result.append(0)
             

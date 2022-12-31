@@ -46,7 +46,7 @@ def get_posunique(sentence, noun):
             unwords.add(p[0])
     return len(unwords)
 
-def metrics_mapping (metric, tset):
+def metrics_mapping (metric, tset, lpair='en-de'):
     hyps, srcs, refs, = list(tset['hyp']), list(tset['src']), list(tset['ref'])
     if metric in tset.keys():
         print("already got it")
@@ -60,7 +60,8 @@ def metrics_mapping (metric, tset):
     elif metric=="comet":
         tset[metric] = get_scores_auto(hyps, srcs, refs, "comet", "")
     elif metric=="posthoc":
-        tset[metric] = get_scores_auto(hyps, srcs, refs, "posthoc", "fr-en")
+        print("Getting posthoc for ", lpair)
+        tset[metric] = get_scores_auto(hyps, srcs, refs, "posthoc", lpair)
     elif metric=="dupcqe":
         tset[metric] = get_scores_auto(hyps, srcs, refs, "dupcqe", "comstyle")
     # TODO add support for the english->russian table later
@@ -70,14 +71,14 @@ def metrics_mapping (metric, tset):
 
 if __name__=="__main__":
     
-    savefile = "nounxsumbeam50v2.csv"
-    #metrics = ['dupcqe', 'comet', 'cqe', 'posthoc']
+    savefile = "nounfrenbeam50v2.csv"
+    #metrics = ['comet', 'cqe', 'posthoc', 'dupcqe']
     metrics = ['utnoun', 'unique_nouns']
 
     if os.path.exists("outputs/score_csvs/"+savefile):
         tset = pd.read_csv("outputs/score_csvs/"+savefile, index_col=0)
     else:
-        tset = make_sample_test("exploded_xsum_beam50/", -1, -1)
+        tset = make_sample_test("exploded_mtfren_beam50/", -1, -1)
     print("Sanity check")
     print(tset.loc[0])
     tset = tset.dropna()

@@ -38,6 +38,29 @@ def read_mt_data(path='/mnt/data1/prasann/latticegen/lattice-generation/mt-data/
         assert None not in tlines
         print("USING COMPARABLE DATA")
         return zip(slines, tlines)
+    if 'de' in name:
+        datadf = pd.read_csv("/mnt/data1/prasann/latticegen/lattice-generation/mt-data/germantestset.csv")
+        slines = list(datadf['src'])
+        tlines = list(datadf['ref'])
+        assert len(slines)==len(tlines)
+        assert "" not in slines
+        assert "" not in tlines
+        assert None not in slines
+        assert None not in tlines
+        print("USING COMPARABLE GERMAN DATA")
+        return zip(slines, tlines)
+    if "ru" in name:
+        datadf = pd.read_csv("/mnt/data1/prasann/latticegen/lattice-generation/mt-data/russiantestset.csv")
+        slines = list(datadf['src'])
+        tlines = list(datadf['ref'])
+        assert len(slines)==len(tlines)
+        assert "" not in slines
+        assert "" not in tlines
+        assert None not in slines
+        assert None not in tlines
+        print("USING COMPARABLE RUSSIAN DATA")
+        return zip(slines, tlines)
+
     src = name[:2]
     tgt = name[3:]
     with open(os.path.join(path, f"{name}.{src}"), 'r') as fd:
@@ -58,7 +81,7 @@ def read_mt_data(path='/mnt/data1/prasann/latticegen/lattice-generation/mt-data/
 # MODEL_CACHE = '/mnt/data1/jcxu/cache'
 
 
-def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cuda:0'):
+def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cuda:2'):
     device = torch.device(device_name)
     print(model_name)
     config = AutoConfig.from_pretrained(model_name)
@@ -164,7 +187,7 @@ def process_arg():
     parser = argparse.ArgumentParser()
     parser.add_argument('-exploded', type=str, default="False")
 
-    parser.add_argument('-device', type=str, default='cuda:0', help='name of device, eg. cuda:0 or cpu')
+    parser.add_argument('-device', type=str, default='cuda:2', help='name of device, eg. cuda:2 or cpu')
     parser.add_argument("-model", type=str, choices=[
                         'dbs', 'bs', 'greedy', 'topp', 'temp', 'bs_recom', 'sample_recom', 'bfs','bfs_recom'], default='bs')
     parser.add_argument('-beam_size', type=int, default=15)

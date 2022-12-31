@@ -13,7 +13,7 @@ from comet import download_model, load_from_checkpoint
 import pickle
 from sklearn.utils import shuffle
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 csv.field_size_limit(sys.maxsize)
 xlm_tok = AutoTokenizer.from_pretrained('xlm-roberta-base')
 loss_function = nn.MSELoss()
