@@ -9,7 +9,7 @@ import pandas as pd
 from transformers import AutoModel, AutoTokenizer
 import torch
 from transformers import T5ForConditionalGeneration, AutoConfig
-from parent_explore.stagewise_finetune.src.finetune_t5 import SummarizationModule
+from parent_explore.stagewise_finetune.src.finetune_t5_mod import SummarizationModule
 import pickle
 import argparse
 import pytorch_lightning as pl
@@ -90,7 +90,7 @@ def read_mt_data(path='/mnt/data1/prasann/latticegen/lattice-generation/mt-data/
 # MODEL_CACHE = '/mnt/data1/jcxu/cache'
 
 inpargs = """
---data_dir=/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/stagewise_finetune/pos/traindata 
+--data_dir=/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/stagewise_finetune/pos
 --gpus 1 
 --learning_rate=3e-5 
 --output_dir=/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/stagewise_finetune/src/ignore_tmp
@@ -113,12 +113,35 @@ inpargs = """
 def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cuda:2'):
     device = torch.device(device_name)
     print(model_name)
-    config = AutoConfig.from_pretrained(model_name)
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    if task == 'table2text':
-        del model
-        del tokenizer 
+    
+    if task == 'table_to_text':
+        tokenizer = AutoTokenizer.from_pretrained("facebook/bart-base")
+        new_tokens = ['<H>', '<R>', '<T>']
+        new_tokens_vocab = {}
+        new_tokens_vocab['additional_special_tokens'] = []
+        for idx, t in enumerate(new_tokens):
+            new_tokens_vocab['additional_special_tokens'].append(t)
+        num_added_toks = tokenizer.add_special_tokens(new_tokens_vocab)
+        # first get cond gen model
+        ckpt = torch.load("/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/plms-graph2text/webnlg-bart-base.ckpt")
+        state_dict = ckpt['state_dict']
+        # make weight keys compatible 
+        for key in list(state_dict.keys()):
+            if key[:len("model.")]=="model.":
+                state_dict[key[len("model."):]] = state_dict.pop(key)
+        model = BartForConditionalGeneration.from_pretrained(
+            "facebook/bart-base", state_dict=ckpt['state_dict'], vocab_size=50268
+        )
+        datadf = pd.read_csv("/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/stagewise_finetune/parent-master/wnlg_testset_bart.csv")
+        slines = list(datadf['src'])
+        tlines = list(datadf['ref'])
+        dataset = zip(slines, tlines)
+        dec_prefix = [tokenizer.eos_token_id]
+        # logging.info(f"DEC PREFIX {tokenizer.decode(dec_prefix)}") # TODO what's the purpose of this?
+    """
+    if task == 'unused':
+        #del model
+        #del tokenizer 
         # TODO modify these for the setting
         parser = argparse.ArgumentParser()
         parser = pl.Trainer.add_argparse_args(parser)
@@ -127,14 +150,21 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
         args = parser.parse_args(inpargs)
 
         model = SummarizationModule(args)
+        # set this up correctly
+        model.eval_beams = args.beam_size
         tokenizer = model.tokenizer
         dataloader = model.get_dataloader("test", batch_size=1)
         # TODO will this work cleanly?
         dataset = dataloader
         
-        dec_prefix = [tokenizer.eos_token_id]
-        logging.info(f"DEC PREFIX {tokenizer.decode(dec_prefix)}") # TODO what's the purpose of this?
+        dec_prefix = []
+    """
+    
+        #logging.info(f"DEC PREFIX {tokenizer.decode(dec_prefix)}") # TODO what's the purpose of this?
     if task == 'custom':
+        config = AutoConfig.from_pretrained(model_name)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
         # you need to store the input under the path_dataset folder
         dec_prefix = [tokenizer.eos_token_id]
         with open(os.path.join(dataset, 'input.txt'), 'r') as fd:
@@ -143,6 +173,9 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
             tlines = fd.read().splitlines()
         dataset = zip(slines, tlines)
     elif task == 'sum':
+        config = AutoConfig.from_pretrained(model_name)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
         logging.info('Loading dataset')
         if dataset == 'xsum':
             print("using hard coded dataset")
@@ -240,7 +273,7 @@ def process_arg():
     parser.add_argument('-nexample', type=int, default=100)
 
     parser.add_argument('-task', type=str, default='sum',
-                        choices=['sum', 'mt1n', 'mtn1', 'custom'], help='for custom, you need to define your data IO')
+                        choices=['sum', 'mt1n', 'mtn1', 'table_to_text', 'custom'], help='for custom, you need to define your data IO')
     parser.add_argument('-dataset', default='xsum', type=str)
     parser.add_argument('-hf_model_name', default='facebook/bart-large-xsum', type=str)
 

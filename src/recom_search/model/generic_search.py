@@ -21,7 +21,7 @@ class GenericSearch(SearchStrategy):
         input_ids = self.tokenizer(
             input_doc, return_tensors="pt").input_ids.to(self.device)
         run_output = self._timed_run(
-            input_ids=input_ids,forced_bos_token_id  =forced_bos_token_id )
+            input_ids=input_ids,forced_bos_token_id  =forced_bos_token_id)
 
         sequences = run_output['output']['sequences'].cpu().tolist()
         # sequences_scores = run_output['output']['scores']   # seq_len, batch, vocab
