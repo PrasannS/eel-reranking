@@ -40,32 +40,44 @@ def adjust_batch_size(max_len, task, dataset):
         bs -= 1
     return max(bs,1)
 
-
 def run_bs_recombination(args, model, input_doc, dec_prefix, param_sim_function, adjust=True):
-    input_ids = tokenizer(
-        input_doc, return_tensors="pt").input_ids.to(args.device)
+    if args.task == 'table2text':
+        input_ids = input_doc['input_ids']
+    else:
+        input_ids = tokenizer(
+            input_doc, return_tensors="pt").input_ids.to(args.device)
+
     if args.max_len == -1:
         cur_max_len = input_ids.squeeze().size()[0] * 2
     else:
         cur_max_len = args.max_len
-    if adjust:
-        adj_batch_size = adjust_batch_size(
-            cur_max_len, args.task, args.dataset)
-    else:
-        adj_batch_size = args.beam_size
+    # we already get our processed thing from the get-go
+    if args.task == 'table2text':
+        input_ids = input_doc 
+        for k in input_ids.keys(): 
+            input_ids[k] = input_ids[k].to(args.device)
     output = recomb_baseline(doc_input_ids=input_ids, dec_prefix=dec_prefix, param_sim_function=param_sim_function,
-                              model=model, debug=False, beam_size=adj_batch_size, max_len=cur_max_len, avg_score=args.avg_score)
+                              model=model, debug=False, beam_size=args.beam_size, max_len=cur_max_len, avg_score=args.avg_score)
     mo = SearchModelOutput(ends=output)
     return mo
 
-
 def run_recom_sample(args, model, input_doc, dec_prefix, param_sim_function) -> SearchModelOutput:
-    input_ids = tokenizer(
-        input_doc, return_tensors="pt").input_ids.to(args.device)
+    # for this just use dataloader as is
+    if args.task == 'table2text':
+        input_ids = input_doc['input_ids']
+    else:
+        input_ids = tokenizer(
+            input_doc, return_tensors="pt").input_ids.to(args.device)
+
     if args.max_len == -1:
         cur_max_len = input_ids.squeeze().size()[0] * 2
     else:
         cur_max_len = args.max_len
+    # we already get our processed thing from the get-go
+    if args.task == 'table2text':
+        input_ids = input_doc 
+        for k in input_ids.keys(): 
+            input_ids[k] = input_ids[k].to(args.device)
     output = baseline_recomb_sample(doc_input_ids=input_ids, dec_prefix=dec_prefix, param_sim_function=param_sim_function,
                                      model=model, max_len=cur_max_len, num_return_hypo=args.beam_size, top_p=args.top_p)
 
@@ -75,21 +87,30 @@ def run_recom_sample(args, model, input_doc, dec_prefix, param_sim_function) -> 
 
 def run_bfs(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search):
 
-    input_ids = tokenizer(inp, return_tensors="pt").input_ids.to(args.device)
+    if args.task == 'table2text':
+        input_ids = inp['input_ids']
+    else:
+        input_ids = tokenizer(
+            inp, return_tensors="pt").input_ids.to(args.device)
+
     if args.max_len == -1:
         cur_max_len = input_ids.squeeze().size()[0] * 2
         comp_budget = cur_max_len * args.beam_size
     else:
         comp_budget = args.max_len * args.beam_size
         cur_max_len = args.max_len
+    # we already get our processed thing from the get-go
+    if args.task == 'table2text':
+        input_ids = inp 
+        for k in input_ids.keys(): 
+            input_ids[k] = input_ids[k].to(args.device)
     output = bfs(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, param_sim_function=param_sim_function, dec_prefix=dec_prefix, avg_score=args.avg_score, max_len=cur_max_len, k_best=args.k_best, comp_budget=comp_budget, config_heu=None, config_search=config_search)
 
     mo = SearchModelOutput(ends=output)
     return mo
 
 
-def run_bfs_recombination(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search) -> SearchModelOutput:
-
+def run_bfs_recombination(args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search) -> SearchModelOutput:        
     config_heu = {
         'heu_seq_score': args.heu_seq_score,
         'heu_seq_score_len_rwd': args.heu_seq_score_len_rwd,
@@ -97,14 +118,25 @@ def run_bfs_recombination(args, model, tokenizer, inp, dec_prefix, param_sim_fun
         'heu_ent': args.heu_ent,
         'heu_word': args.heu_word
     }
-    input_ids = tokenizer(
-        inp, return_tensors="pt").input_ids.to(args.device)
+    # for this just use dataloader as is
+    if args.task == 'table2text':
+        input_ids = inp['input_ids']
+    else:
+        input_ids = tokenizer(
+            inp, return_tensors="pt").input_ids.to(args.device)
+
     if args.max_len == -1:
         cur_max_len = input_ids.squeeze().size()[0] * 2
         comp_budget = cur_max_len * args.beam_size
     else:
         comp_budget = args.max_len * args.beam_size
         cur_max_len = args.max_len
+    # we already get our processed thing from the get-go
+    if args.task == 'table2text':
+        input_ids = inp 
+        for k in input_ids.keys(): 
+            input_ids[k] = input_ids[k].to(args.device)
+    # TODO k_best of 5 is hard-coded, does that affect anything?
     output = bfs_rcb_any(doc_input_ids=input_ids, model=model, tokenizer=tokenizer, param_sim_function=param_sim_function, dec_prefix=dec_prefix, avg_score=args.avg_score,
                     max_len=cur_max_len, k_best=5, comp_budget=comp_budget, config_heu=config_heu, config_search=config_search)
 
@@ -207,6 +239,12 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
             ref_sum = example[1]
             doc_id =  'undefined'
             inp = document
+        elif args.task == 'table2text':
+            ref_sum = tokenizer.decode(example['labels'][0], skip_special_tokens=True)
+            del example['labels']
+            document = tokenizer.decode(example['input_ids'][0], skip_special_tokens=True)
+            doc_id = str(idx)
+            inp = example
         else:
             raise NotImplementedError("for customized dataset, use custom as the name of dataset and document|ref|uid for fields")
         # if 'Apple' not in document:

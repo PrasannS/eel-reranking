@@ -162,8 +162,10 @@ def get_comet_scores(hyps, srcs, refs, comet):
 DSET_CHKS = {
     "copcqe":"/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_38/checkpoints/epoch=3-step=140000.ckpt",
     "dupcqe":"/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_43/checkpoints/epoch=3-step=140000.ckpt",
-    "utnoun":"/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_44/checkpoints/epoch=9-step=40000.ckpt"
+    "utnoun":"/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_44/checkpoints/epoch=9-step=40000.ckpt",
+    "parentqe": "/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_57/checkpoints/epoch=1-step=50000.ckpt"
 }
+
 # sco is the score funct, dset is either model name or 
 # is the language (can be style as well in certain cases)
 def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
@@ -181,6 +183,17 @@ def get_scores_auto(hyps, srcs, refs, sco="cqe", dset = ""):
         scos = scos[0]
         del model 
         del cometqe_path
+        return scos
+    if sco=='parentqe':
+        model = get_effrerank_model("parentqe", False)
+        model.eval()
+        starttime = time.time()
+        with torch.no_grad():
+            scos = get_cometqe_scores(hyps, srcs, model)
+        totaltime = round((time.time() - starttime), 2)
+        print("TOOK TIME ", totaltime)
+        scos = scos[0]
+        del model 
         return scos
     if dset == "comstyle":
         # TODO this is new, now using batched version of eval model

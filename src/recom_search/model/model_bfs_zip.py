@@ -40,6 +40,7 @@ def step_bfs_rcb_any(tokenizer, start_seed: BeamNodeFull, hash: HashObject, heap
 
         cur_dec_input_ids = pointer.all_token_idx
         dec_prefix = pointer.get_token_idx_as_input()
+        # TODO trace this back
         _, output_prob, _, _ = run_inference_step(
             model, doc_input_ids, decoder_input_ids=dec_prefix, device=doc_input_ids.device, output_dec_hid=False)
 

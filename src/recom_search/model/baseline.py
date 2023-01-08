@@ -89,6 +89,7 @@ def baseline_recomb_sample(doc_input_ids, dec_prefix, model, param_sim_function,
         # stop when the budget runs out
 
         decoder_input_ids = hypo.get_token_idx_as_input()
+        # TODO trace back to make sure that decoder_input_ids are passed in correctly
         output_tokens, output_prob, output_score, _ = run_inference_step(
             model, doc_input_ids, decoder_input_ids=decoder_input_ids, device=doc_input_ids.device, output_dec_hid=False, T=1)
         usage += 1
@@ -157,6 +158,7 @@ def recomb_baseline(doc_input_ids, dec_prefix, model, param_sim_function, beam_s
                 continue
             # prefix
             decoder_input_ids = hypo.get_token_idx_as_input()
+            # TODO trace this method back to see what's going on
             output_tokens, output_prob, output_score, _ = run_inference_step(model, doc_input_ids, decoder_input_ids=decoder_input_ids, device=doc_input_ids.device, output_dec_hid=False, T=1)
 
             values, indices = torch.topk(output_prob, k=beam_size)

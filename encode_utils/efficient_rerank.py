@@ -188,7 +188,7 @@ def dynamic_path(prepnodes, sco_funct, posapp, usednodes, norm):
                 # use from previous
                 bplist[prep.dppos].extend(bplist[mprev.dppos])
                 bscolist[prep.dppos] = bscolist[mprev.dppos] + sco_funct(prep, usednodes, norm)
-                #print(bscolist[prep.dppos])
+
         # TODO look into endings that are happening due to excessive trunction
         ncnt = 0
         # TODO more thorough check
@@ -217,15 +217,20 @@ def dynamic_path(prepnodes, sco_funct, posapp, usednodes, norm):
         print("suboptimal, ", [tnode.token_str for tnode in bestpath])
     return bestpath, bestsco, bplist, bscolist
 
-def get_effrerank_model(keystr):
+def get_effrerank_model(keystr, evalbool=True):
     reflessmod = None
+    if 'parent' in keystr:
+        print("USING TABLE->TEXT MODEL")
+        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_57/checkpoints/epoch=1-step=50000.ckpt", evalbool).to(device)
     if keystr == "comstyle":
+        print("USING MT MODEL")
         # TODO update to most updated model at a given time
-        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_43/checkpoints/epoch=3-step=130000.ckpt", True).to(device)
+        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_43/checkpoints/epoch=3-step=130000.ckpt", evalbool).to(device)
     elif keystr == "comnocause":
-        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_38/checkpoints/epoch=3-step=140000.ckpt", True).to(device)
+        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_38/checkpoints/epoch=3-step=140000.ckpt", evalbool).to(device)
     elif keystr == "noun":
-        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_44/checkpoints/epoch=9-step=40000.ckpt", True).to(device)
+        print("NOUN MODEL")
+        reflessmod = lfc("/mnt/data1/prasann/latticegen/lattice-generation/COMET/lightning_logs/version_44/checkpoints/epoch=9-step=40000.ckpt", evalbool).to(device)
         
     reflessmod.eval()
     return reflessmod

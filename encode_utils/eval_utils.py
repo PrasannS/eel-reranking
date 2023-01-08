@@ -86,13 +86,18 @@ def lattice_multi_rerank(ind, n, scofunct, afunc, args):
         srcs = ["noun"]*len(ahyps)
     else:
         srcs = [graph['input']]*len(ahyps)
-    # Rescore everything, send back result (TODO can we use dp scores instead?)
-    ascos = batch_hyp_sco(srcs, ahyps, args)
+    # TODO there may be issue from posid degradation?
+    if args['efficient_eval']:
+        ascos = bsco
+        # Rescore everything, send back result (TODO can we use dp scores instead?)
+    else:
+        #print("e")
+        ascos = batch_hyp_sco(srcs, ahyps, args)
     ascos = [float(a) for a in ascos]
     numnodes = len(flattened)
     bestind = np.argmax(list(ascos))
 
-    return ascos[bestind], ahyps[bestind], goldsco, bestcand['hyp'], ascos, ahyps, numnodes, bestcand['src'], bestcand['ref']
+    return ascos[bestind], ahyps[bestind], goldsco, bestcand['hyp'], ascos, ahyps, numnodes, bestcand['src'], bestcand['ref'], bsco
 
 # get multiple things with the lattice, rerank on each (not optimized, so it is a bit slow)
 def all_lattice_multi(n, scofunct, afunc, args):
@@ -118,6 +123,7 @@ def all_lattice_multi(n, scofunct, afunc, args):
                 'numnodes':outval[6],
                 'src':outval[7],
                 'ref':outval[8],
+                'origscos':[float(f) for f in outval[9]]
             })
             cnt+=1
     res = pd.DataFrame(pdistr)

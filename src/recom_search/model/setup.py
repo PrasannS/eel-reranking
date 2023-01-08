@@ -5,6 +5,15 @@ from datasets import load_dataset
 import argparse
 import torch
 from transformers import BartTokenizer, BartForConditionalGeneration
+import pandas as pd
+from transformers import AutoModel, AutoTokenizer
+import torch
+from transformers import T5ForConditionalGeneration, AutoConfig
+from parent_explore.stagewise_finetune.src.finetune_t5 import SummarizationModule
+import pickle
+import argparse
+import pytorch_lightning as pl
+import os
 from transformers import AutoConfig, AutoModelForSeq2SeqLM,AutoTokenizer
 import os
 import random
@@ -80,6 +89,26 @@ def read_mt_data(path='/mnt/data1/prasann/latticegen/lattice-generation/mt-data/
 
 # MODEL_CACHE = '/mnt/data1/jcxu/cache'
 
+inpargs = """
+--data_dir=/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/stagewise_finetune/pos/traindata 
+--gpus 1 
+--learning_rate=3e-5 
+--output_dir=/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/stagewise_finetune/src/ignore_tmp
+--train_batch_size 3 --eval_batch_size 3 
+--max_source_length=120 
+--max_target_length=100 
+--val_max_target_length=100 
+--checkpoint=/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/stagewise_finetune/src/final_model_results/val_avg_bleu=61.9200-step_count=0.ckpt 
+--test_max_target_length=100 
+--eval_max_gen_length=100 
+--model_name_or_path /mnt/data1/prasann/latticegen/lattice-generation/parent_explore/stagewise_finetune/src/final_model_results/best_tfmr 
+--task translation 
+--early_stopping_patience 15 
+--warmup_steps 2 
+--do_predict 
+--lr_scheduler cosine_w_restarts 
+--eval_beams 16
+""".split()
 
 def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cuda:2'):
     device = torch.device(device_name)
@@ -87,7 +116,24 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
     config = AutoConfig.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    if task == 'table2text':
+        del model
+        del tokenizer 
+        # TODO modify these for the setting
+        parser = argparse.ArgumentParser()
+        parser = pl.Trainer.add_argparse_args(parser)
+        parser = SummarizationModule.add_model_specific_args(parser, os.getcwd())
+        # process stuff from inpargs
+        args = parser.parse_args(inpargs)
 
+        model = SummarizationModule(args)
+        tokenizer = model.tokenizer
+        dataloader = model.get_dataloader("test", batch_size=1)
+        # TODO will this work cleanly?
+        dataset = dataloader
+        
+        dec_prefix = [tokenizer.eos_token_id]
+        logging.info(f"DEC PREFIX {tokenizer.decode(dec_prefix)}") # TODO what's the purpose of this?
     if task == 'custom':
         # you need to store the input under the path_dataset folder
         dec_prefix = [tokenizer.eos_token_id]

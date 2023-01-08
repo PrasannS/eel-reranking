@@ -18,11 +18,11 @@ def addprob (node, unused, norm):
         #npcnt+=1
         return 1
 
-WEIGHT= .78
+WEIGHT= .67
 def weightaddprob (node, unused, norm):
     global pcnt, npcnt
     if hasattr(node, "prob"):
-        return math.log(node.prob)/norm + WEIGHT*node.score
+        return math.log(node.prob) + WEIGHT*node.score
     else:
         return 1
     

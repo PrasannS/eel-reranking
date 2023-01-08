@@ -80,20 +80,25 @@ def render_name(task, data, mname, doc_id, inp_doc_str: str, beam_sz: int, max_l
 
 @torch.no_grad()
 def run_inference_step(model, input_ids, attention_mask=None, decoder_input_ids=None, targets=None, device='cuda:2', output_dec_hid=False, T=1):
-    decoder_input_ids = decoder_input_ids.to(device)
-    input_ids = input_ids.to(device)
-    if attention_mask is not None:
-        attention_mask = attention_mask.to(device)
-    assert decoder_input_ids.size()[0] == input_ids.size()[0]
+    # we're using a standard setting
+    if type(input_ids) is dict:
+        decoder_input_ids = decoder_input_ids.to(device)
+        input_ids = input_ids.to(device)
+        if attention_mask is not None:
+            attention_mask = attention_mask.to(device)
+        assert decoder_input_ids.size()[0] == input_ids.size()[0]
 
-    model_inputs = {"input_ids": input_ids,
-                    "attention_mask": attention_mask,
-                    "decoder_input_ids": decoder_input_ids,
-                    }
+        model_inputs = {"input_ids": input_ids,
+                        "attention_mask": attention_mask,
+                        "decoder_input_ids": decoder_input_ids,
+                        }
+    else: # we're doing T5 for table-to-text
+        input_ids['decoder_input_ids'] = decoder_input_ids.to(device)
 
     outputs = model(**model_inputs,
                     output_hidden_states=output_dec_hid,
                     use_cache=False, return_dict=True)
+    # TODO figure out what's going on with targets
 
     # batch, dec seq, vocab size
     next_token_logits = outputs.logits[:, -1, :]
