@@ -16,6 +16,7 @@ class GenericSearch(SearchStrategy):
         self.temperature = temperature
         self.diversity_penalty = diversity_penalty
         self.top_p = top_p
+        self.model.config.forced_bos_token_id = None
 
     def run(self, input_doc: str, forced_bos_token_id):
         input_ids = self.tokenizer(

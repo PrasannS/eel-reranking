@@ -8,6 +8,8 @@ import random
 import nltk
 from encode_utils.mt_scores import get_scores_auto
 import encode_utils.rerank_data as rd
+from parent_explore.stagewise_finetune.parent_master.parent import parent_score_df
+
 
 PKLBASE = "outputs/graph_pickles/"
 # make n sample test set
@@ -51,6 +53,7 @@ def metrics_mapping (metric, tset, lpair='en-de'):
     if metric in tset.keys():
         print("already got it")
         return
+    
     if metric=="utnoun":
         tset[metric] = get_scores_auto(hyps, ["noun"]*len(hyps), [], "utnoun", "comstyle")
     elif metric=="unique_nouns":
@@ -64,6 +67,15 @@ def metrics_mapping (metric, tset, lpair='en-de'):
         tset[metric] = get_scores_auto(hyps, srcs, refs, "posthoc", lpair)
     elif metric=="dupcqe":
         tset[metric] = get_scores_auto(hyps, srcs, refs, "dupcqe", "comstyle")
+    elif metric=='parent':
+        if "precision" in tset.keys():
+            print("already got it")
+            return
+        # do parent re-scoring
+        result = parent_score_df(tset, savefile)
+        result.to_csv("outputs/score_csvs/"+savefile)
+    elif metric=='pqe':
+        tset[metric] = get_scores_auto(hyps, srcs, refs, "parentqe", "parentqe")
     # TODO add support for the english->russian table later
     else:
         print("invalid metric")
@@ -71,14 +83,14 @@ def metrics_mapping (metric, tset, lpair='en-de'):
 
 if __name__=="__main__":
     
-    savefile = "nounfrenbeam50v2.csv"
+    savefile = "parentlatticeexplode.csv"
     #metrics = ['comet', 'cqe', 'posthoc', 'dupcqe']
-    metrics = ['utnoun', 'unique_nouns']
+    metrics = ['parent', 'pqe']
 
     if os.path.exists("outputs/score_csvs/"+savefile):
         tset = pd.read_csv("outputs/score_csvs/"+savefile, index_col=0)
     else:
-        tset = make_sample_test("exploded_mtfren_beam50/", -1, -1)
+        tset = make_sample_test("exploded_tabtotext_lattice/", -1, -1)
     print("Sanity check")
     print(tset.loc[0])
     tset = tset.dropna()
@@ -86,7 +98,11 @@ if __name__=="__main__":
     # generate necessary scores
     for m in metrics:
         metrics_mapping(m, tset)
-        tset.to_csv("outputs/score_csvs/"+savefile)
+        if "parent" not in m:
+            tset.to_csv("outputs/score_csvs/"+savefile)
+        else:
+            # since it's being written separately, need to update
+            tset = pd.read_csv("outputs/score_csvs/"+savefile)
 
     print(tset.keys())
     # do re-ranking, save results in a json file

@@ -7,15 +7,13 @@ from comet import download_model, load_from_checkpoint
 from generate_utils.distill_comet import load_distill_model, run_distill_comet
 
 from bleurt import score
-#import sys
-#sys.path.insert(1, '/mnt/data1/prasann/latticegen/lattice-generation/COMET')
+
 csv.field_size_limit(sys.maxsize)
-#from COMET.comet.models.regression.referenceless import ReferencelessRegression
-#from COMET.comet.models import load_from_checkpoint as lfc
+
 from encode_utils.efficient_rerank import get_effrerank_model
 from encode_utils.eval_utils import batch_hyp_sco
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 def get_comstyle_correct(srcs, hyps, model, device, bsize = 32):
 
@@ -58,23 +56,27 @@ def get_mbart_nll(cand, ind, inptok, labtok, mod, dev):
     #print(labels.attention_mask)
     return output.loss
 
+loss_fcnt = torch.nn.CrossEntropyLoss(reduction='none')
+
 def get_mbart_nllsco(inpu, outpu, inptok, labtok, mod, dev):
     
     inp = inpu
     out = outpu
 
-    inputs = inptok(inp, return_tensors="pt").to(dev)
+    inputs = inptok(inp, padding=True, truncation=True, return_tensors="pt").to(dev)
     with labtok.as_target_tokenizer():
-        labels = labtok(out, return_tensors="pt").to(dev)
+        labels = labtok(out, padding=True, truncation=True, return_tensors="pt").to(dev)
 
     # forward pass
     output = mod(**inputs, labels=labels.input_ids)
+    l = loss_fcnt(output.logits.view(-1, mod.config.vocab_size), labels['input_ids'].view(-1))
+    losses = torch.mean(l.reshape(len(inpu), int(len(l)/len(inpu))), 1)
     #print(type(labels))
     #print(labels.attention_mask)
-    return output.loss
+    return losses
 
 def rescore_cands(dset, hyplist, srclist):
-    device = "cuda:2" if torch.cuda.is_available() else "cpu"
+    device = "cuda:1" if torch.cuda.is_available() else "cpu"
     if "de" in dset:
         mname = "facebook/mbart-large-50-one-to-many-mmt"
         src_l = "en_XX"
@@ -87,23 +89,47 @@ def rescore_cands(dset, hyplist, srclist):
         mname = "facebook/mbart-large-50-many-to-one-mmt"
         src_l = "fr_XX"
         tgt_l = "en_XX"
-    inptok = AutoTokenizer.from_pretrained(mname)
-    labtok = AutoTokenizer.from_pretrained(mname, src_lang=src_l, tgt_lang=tgt_l)
-    mod = AutoModelForSeq2SeqLM.from_pretrained(mname)
+    
+    if "table" in dset:
+        inptok = AutoTokenizer.from_pretrained("facebook/bart-base")
+        new_tokens = ['<H>', '<R>', '<T>']
+        new_tokens_vocab = {}
+        new_tokens_vocab['additional_special_tokens'] = []
+        for idx, t in enumerate(new_tokens):
+            new_tokens_vocab['additional_special_tokens'].append(t)
+        num_added_toks = inptok.add_special_tokens(new_tokens_vocab)
+        # first get cond gen model
+        ckpt = torch.load("/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/plms-graph2text/webnlg-bart-base.ckpt")
+        state_dict = ckpt['state_dict']
+        # make weight keys compatible 
+        for key in list(state_dict.keys()):
+            if key[:len("model.")]=="model.":
+                state_dict[key[len("model."):]] = state_dict.pop(key)
+        # TODO let's check and see if this works correctly
+        mod = AutoModelForSeq2SeqLM.from_pretrained(
+            "facebook/bart-base", state_dict=ckpt['state_dict'], vocab_size=50268
+        )
+        labtok = inptok
+    else:
+        inptok = AutoTokenizer.from_pretrained(mname)
+        labtok = AutoTokenizer.from_pretrained(mname, src_lang=src_l, tgt_lang=tgt_l)
+        mod = AutoModelForSeq2SeqLM.from_pretrained(mname)
     mod.to(device)
     mod.eval()
     print("rescoring candidates")
     i = 0
     result = []
     starttime = time.time()
-    for i in range(0, len(hyplist)):
-        if i%500==0:
+    bsize = 8
+    for i in range(0, int(len(hyplist)/bsize)+1):
+        if i%100==0:
             print(i)
         with torch.no_grad():
             try:
-                result.append(float(get_mbart_nllsco(srclist[i], hyplist[i], inptok, labtok, mod, device)))
+                result.extend([float(f) for f in (get_mbart_nllsco(srclist[i*bsize:(i+1)*bsize], hyplist[i*bsize:(i+1)*bsize], inptok, labtok, mod, device))])
             except:
-                result.append(0)
+                print("error")
+                result.append([0]*bsize)
     
         #result.append(0)
             

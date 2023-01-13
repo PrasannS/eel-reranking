@@ -4,7 +4,7 @@ from scipy.spatial.distance import cosine
 from more_itertools import locate
 from .new_flatten_lattice import detok
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 MAX_LEN =512
 
@@ -47,20 +47,23 @@ def clean_empty(rarrs, pgraphs):
             break
     assert len(rarrs)==len(pgraphs)
             
-MAXLEN =512
+MAXLEN = 512
 # posids are the first posids to be set for each value
+# assume everything has same size
 def create_inputs(pgraphs):
     result_tok = []
     result_pos = []
     for p in pgraphs:
-        tokstmp = [0]*MAX_LEN
-        postmp = [0]*MAX_LEN
+        # TODO got rid of extra padding, does this change anything?
+        tokstmp = [0]*min(MAX_LEN, len(pgraphs[0]))
+        postmp = [0]*min(MAX_LEN, len(pgraphs[0]))
         idl = [t['id'] for t in p]
         ind = 0
         for tok in p:
             if ind==MAXLEN:
                 break
             tokstmp[ind] = tok['token_idx']
+            # TODO this is a bit janky
             for n in tok['nexts']:
                 try:
                     if postmp[idl.index(n)]==0:

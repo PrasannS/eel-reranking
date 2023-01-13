@@ -1,5 +1,7 @@
 import torch
 import random
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+
 
 def bestprobsingle(mask, row, checknodes, mlen):
     bestnext = -1
@@ -15,7 +17,7 @@ def bestprobsingle(mask, row, checknodes, mlen):
 
 # get adjacency from flat canvas of tokens, with previous tokens
 def adj_mat(flat_canv, mlen, forward, single_cont, afunc = bestprobsingle):
-    mask = torch.zeros((mlen, mlen))
+    mask = torch.zeros((mlen, mlen), device=device)
     # have a cutoff after the calculated limit to circumvent extra computation
     # and potential bugs
     for row in range(mlen):
@@ -87,16 +89,17 @@ def get_connect_mask(flat_canv, posadd, forward, params):
             tmp = torch.mm(back_adjac, tmp)
             tot += tmp
             numrounds+=1
-    tot = tot+ torch.eye(mlen)
+    tot = tot+ torch.eye(mlen, device=device)
     return (tot>0).int()
 
+# will no longer be compatible with batches of different input sizes
 def get_causal_mask(flatcanv, posadd, params, addforward=False):
     custmax = get_connect_mask(flatcanv, posadd, False, params)
     if addforward:
         custmax = custmax + get_connect_mask(flatcanv, posadd, True, params)
         custmax = (custmax>0).int()
     # everything starts off as 1s
-    res = torch.ones((MAXTOKS, MAXTOKS))
+    res = torch.ones(min(MAXTOKS, len(flatcanv)), min(MAXTOKS, len(flatcanv)), device=device)
     # causal on the right side
     res[:, posadd:] = 0
     addpos = len(custmax)+posadd

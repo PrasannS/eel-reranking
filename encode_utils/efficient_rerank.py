@@ -5,8 +5,10 @@ from .encoding_utils import create_inputs
 import torch.nn as nn
 from transformers import AutoModel
 from .new_flatten_lattice import get_dictlist, detok
+from .sco_funct import onlyprob
+import time
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 xlm_tok = detok
 
@@ -239,59 +241,93 @@ MAX_TOKS = 512
 # run pipeline, but we use comet-style model 
 def run_comstyle_multi(graph, model, scofunct, outfile, params, extra=False, nummasks=1, verbose=False):
     # get converted, flattened lattice
+
+    nodetime = time.time()
     flattened, flnodes = get_dictlist(graph, True)
+    nodetime =  time.time() - nodetime
     totnodes = len(flnodes)
-
-    
-    # make sure that we're only working with the tokens that fit into canvas
-    truncflat = flattened[:MAX_TOKS]
-    sents, posids = create_inputs([truncflat])
-    # NOTE this is not the same for BERT
-    posids = posids + 2
-    
-    # type of model is ReflessEval, input format of (everything)
-    if "noun" in outfile:
-        toked_inp = xlm_tok(["noun"], return_tensors="pt").to(device)
-    else:
-        toked_inp = xlm_tok([graph['input']], return_tensors="pt").to(device)
-
+    enctime = 0
+    masktime = 0
     blist = []
     slist = []
-    usednodes = []
-    msks = []
-
-    # get n shots worth of masks
-    for i in range(nummasks):
-        msks.append(get_causal_mask(flnodes, 0, params, False))
-    # src_input_ids, src_attention_mask, mt_input_ids, mt_pos_ids, mt_attention_mask
-    assert len(sents.shape)==2
-    assert len(toked_inp.input_ids.shape)==2
-    inpshape = nummasks, toked_inp.input_ids.shape[1]
-    hypshape = nummasks, sents.shape[1]
-    with torch.no_grad():
-        # TODO can make more efficient by shifting .to calls
-        # TODO increase efficiency with batching (also ensure mask gen on device)
-        # pass everything in one batch
-        predout = model(toked_inp.input_ids.expand(inpshape), toked_inp.attention_mask.expand(inpshape) \
-                    , sents.expand(hypshape), posids.expand(hypshape), torch.stack(msks).to(device))
-        # undo normalization since that happens later anyways
-        pred = predout['score'] * predout['norm']
-        norm = predout['norm']
     
+    msks = []
+    # don't do compute if we're just getting adhoc baseline
+    if scofunct is not onlyprob:
+
+        # make sure that we're only working with the tokens that fit into canvas
+        truncflat = flattened[:MAX_TOKS]
+        sents, posids = create_inputs([truncflat])
+        # NOTE this is not the same for BERT
+        if "pqe" not in outfile:
+            posids = posids + 2 # don't add posids for table2text since it already does that
+        
+        # type of model is ReflessEval, input format of (everything)
+        if "noun" in outfile:
+            toked_inp = xlm_tok(["noun"], return_tensors="pt").to(device)
+        else:
+            toked_inp = xlm_tok([graph['input']], return_tensors="pt").to(device)
+
+        
+        masktime = time.time()
+        # get n shots worth of masks
+        for i in range(nummasks):
+            msks.append(get_causal_mask(flnodes, 0, params, False))
+        masktime = time.time() - masktime
+        # src_input_ids, src_attention_mask, mt_input_ids, mt_pos_ids, mt_attention_mask
+        assert len(sents.shape)==2
+        assert len(toked_inp.input_ids.shape)==2
+        inpshape = nummasks, toked_inp.input_ids.shape[1]
+        hypshape = nummasks, sents.shape[1]
+        with torch.no_grad():
+            # TODO can make more efficient by shifting .to calls
+            # TODO increase efficiency with batching (also ensure mask gen on device)
+            # pass everything in one batch
+            enctime = time.time()
+            predout = model(toked_inp.input_ids.expand(inpshape), toked_inp.attention_mask.expand(inpshape) \
+                        , sents.expand(hypshape), posids.expand(hypshape), torch.stack(msks).to(device))
+            enctime = time.time() - enctime
+            # undo normalization since that happens later anyways
+            pred = (predout['score'] * predout['norm']).cpu()
+            norm = predout['norm']
+    else:
+        pred = [0]*512
+        pred = [pred]
+        norm = len(flnodes)
+        sents = None
+        posids = None
+        totnodes = norm
+        
+    usednodes = []
+    
+    #dptime = time.time()
+    preptime, dptime, otherdp = 0, 0, 0
     # go through all sets of scores, do dynamic programming on each (TODO can we, should we simplify further)
     for p in range(len(pred)):
-
+        preptime -= time.time()
         # multiple rounds for diverse decoding, TODO time optimization (don't fill up canvas) if not already?
         pnodes = prepare_nodes([flnodes[:512]], pred[p], 0)
+        preptime += time.time()
+        dptime -= time.time()
         dpath, bsco, beplist, besclist = dynamic_path(pnodes[0], scofunct, 0, usednodes, norm)
-
+        dptime += time.time()
+        otherdp -= time.time()
         usednodes.extend([dp for dp in dpath])
         blist.append(xlm_tok.decode([dp.token_idx for dp in dpath]))
         slist.append(bsco)
+        otherdp+= time.time()
         
+    times = {
+        'dp':dptime,
+        'dp_prep': preptime,
+        "dp_other": otherdp,
+        'mask': masktime,
+        'encode': enctime,
+        'preprocess': nodetime
+    }
     # verbose return for debugging
     if extra:
-        return blist, flattened, pnodes, msks, sents, posids, pred, 0, flnodes, dpath, beplist, besclist, totnodes, slist
+        return blist, flattened, pnodes, msks, sents, posids, pred, 0, flnodes, dpath, beplist, besclist, totnodes, slist, times
     return blist
 
 MAX_TOKS = 512

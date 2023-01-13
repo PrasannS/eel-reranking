@@ -1,5 +1,5 @@
 import torch
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 from transformers import AutoTokenizer
 import pickle
 import copy
@@ -35,8 +35,25 @@ class DLReverseNode():
 base = "frtest_reversed/"
 #toker = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
 # TODO SWITCH for MT vs XSUM lattices
-toker = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
-detok = AutoTokenizer.from_pretrained("xlm-roberta-base")
+#toker = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
+TOKER = "table"
+# TODO switch need to change default back for all other lattices
+if TOKER == 'mt':
+    toker = AutoTokenizer.from_pretrained("xlm-roberta-base")
+    detok = AutoTokenizer.from_pretrained("xlm-roberta-base")
+if TOKER == 'xsum':
+    toker = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
+    detok = AutoTokenizer.from_pretrained("xlm-roberta-base")
+if TOKER=="table":
+    # in this case we're using the special bart model for both
+    toker = AutoTokenizer.from_pretrained("facebook/bart-base")
+    new_tokens = ['<H>', '<R>', '<T>']
+    new_tokens_vocab = {}
+    new_tokens_vocab['additional_special_tokens'] = []
+    for idx, t in enumerate(new_tokens):
+        new_tokens_vocab['additional_special_tokens'].append(t)
+    num_added_toks = toker.add_special_tokens(new_tokens_vocab)
+    detok = toker
 
 # TODO later on just move this to the initial graph reversal
 def get_dbl_graph(grph):
@@ -90,7 +107,10 @@ def combine_nodes(gr):
     dblgrph = get_dbl_graph(gr) # bug free up to this point
 
     # make graph a word graph
-    greedy_traverse(dblgrph, consolidate_node) # weirdness is gone now?
+    if toker==detok: 
+        ""
+    else: # only do it if we have different tokenizers
+        greedy_traverse(dblgrph, consolidate_node) # weirdness is gone now?
 
     rmlist = []
     for d in dblgrph.keys():

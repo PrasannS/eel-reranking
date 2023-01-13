@@ -8,7 +8,12 @@ def default_scofunct (node, unused, norm):
         pcnt+=1
         return 0
 
-#npcnt = 0
+def onlyprob (node, unused, norm):
+    if hasattr(node, "prob"):
+        return math.log(node.prob)
+    else:
+        return 1
+
 def addprob (node, unused, norm):
     global pcnt, npcnt
     if "prob" in node.keys():

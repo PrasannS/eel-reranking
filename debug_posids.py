@@ -10,8 +10,6 @@ import torch
 import random
 device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
-
-
 # score check (at token level) the best option, and the new option (should be same until they get to non-identical tokens)
 
 # get token level scores from model
