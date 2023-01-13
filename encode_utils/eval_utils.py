@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 import pandas as pd
 import re
+import time
 from encode_utils.efficient_rerank import run_comstyle_multi, run_comstyle
 
 # get token level scores from model, given hypothesis and input source
@@ -50,6 +51,81 @@ def batch_hyp_sco(srcs, hyps, args):
         hypmask)
     
     return torch.sum(predout['score'], 1)#, toked_inp, out_tokens, positionids, hypmask
+
+
+# get multiple things with the lattice, rerank on each (not optimized, so it is a bit slow)
+def all_timing_experiment(scofunct, afunc, args):
+    pdistr = []
+    cnt = 0
+    SETLEN = args['setlen']
+    for i in range(SETLEN):
+        print(i)
+        outval = lattice_timing_experiment(i, scofunct, afunc, args)
+        #except:
+        #print("had an error")
+        if outval==None:
+            continue
+        else:
+            pdistr.append(outval)
+            cnt+=1
+    res = pd.DataFrame(pdistr)
+    return res
+
+def lattice_timing_experiment(ind, scofunct, afunc, args):
+    explode_df = args['explode_df']
+    base = args['base']
+    goldmetric = args['goldmetric']
+    model = args['model']
+    nounmode = "noun" in goldmetric
+
+    graph = pickle.load(open(base+str(ind), 'rb'))
+    nexplode = explode_df[explode_df['ref']==graph['ref']].reset_index()
+
+    if len(nexplode)==0:
+        return None
+    
+    ehyps = nexplode['hyp'][:48]
+    if len(ehyps)!=48: # can't do timing comparison without enough cands
+        return None
+    srcs = [nexplode['src'][0]]*8
+    ind = 0
+    stime = time.time()
+    time8, time32, time48 = 0, 0, 0
+    # Run experiment on 6 batches of 8 
+    while ind < len(ehyps):
+        htmp = ehyps[ind*8:(ind+1)*8]
+        batch_hyp_sco(list(srcs), list(htmp), args)
+        if ind==0:
+            time8 = time.time() - stime
+        elif ind==3:
+            time32 = time.time() - stime
+        elif ind==5:
+            time48 = time.time() - stime
+        ind+=1
+
+    # lattice time 1
+    bestpath , flattened, pnodes, mask, sents, posids, pred, _, \
+        flnodes, dpath, beplist, besclist, totnodes, bsco, timelat1 = run_comstyle_multi(graph, model, scofunct, goldmetric, {'afunc':afunc}, True, 1)
+    
+    # lattice time 8
+    bestpath , flattened, pnodes, mask, sents, posids, pred, _, \
+            flnodes, dpath, beplist, besclist, totnodes, bsco, timelat8 = run_comstyle_multi(graph, model, scofunct, goldmetric, {'afunc':afunc}, True, 8)
+    
+    # 1 batch of 12
+    stime = time.time()
+    batch_hyp_sco([nexplode['src'][0]]*12, list(nexplode['hyp'][:12]), args)
+    time12 = time.time() - stime
+
+    return {
+        'time8':time8,
+        'time12':time12,
+        'time32':time32,
+        'time50':time48,
+        'timelat1':timelat1,
+        'timelat8':timelat8
+    }
+    
+
 
 # test out reranking multiple EEL outputs (observe improvements)
 def lattice_multi_rerank(ind, n, scofunct, afunc, args):
