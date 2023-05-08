@@ -1,6 +1,6 @@
 import argparse
 import torch
-from comet import download_model, load_from_checkpoint
+from tfr_models import download_model, load_from_checkpoint
 import json
 import pandas as pd
 from os.path import exists

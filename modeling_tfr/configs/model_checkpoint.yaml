@@ -1,0 +1,15 @@
+class_path: pytorch_lightning.callbacks.model_checkpoint.ModelCheckpoint
+init_args:
+  #dirpath: checkpoint
+  #filename: {epoch}-{val_loss:.2f}
+  monitor: val_pearson
+  verbose: True
+  save_last: False
+  save_top_k: 8
+  mode: max
+  auto_insert_metric_name: True
+  save_weights_only: True
+  every_n_train_steps: 10000
+  #train_time_interval: null
+  #aevery_n_epochs: 1
+  #save_on_train_epoch_end: null

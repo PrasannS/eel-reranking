@@ -3,7 +3,7 @@ import time
 import sys
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, AutoModelForSequenceClassification
 import torch
-from comet import download_model, load_from_checkpoint
+from tfr_models import download_model, load_from_checkpoint
 from generate_utils.distill_comet import load_distill_model, run_distill_comet
 
 from bleurt import score

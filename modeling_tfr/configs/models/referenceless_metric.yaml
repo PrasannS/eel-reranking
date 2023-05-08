@@ -1,0 +1,26 @@
+referenceless_regression_metric:
+  class_path: tfr_models.models.ReferencelessRegression
+  init_args:
+    nr_frozen_epochs: 0.01
+    keep_embeddings_frozen: True
+    optimizer: AdamW
+    encoder_learning_rate: 1.5e-05
+    learning_rate: 3.1e-05
+    layerwise_decay: 0.95
+    encoder_model: BART # can also use RoBERTa,  XLM-RoBERTa
+    pretrained_model: bart-base # can also usee osunlp/ReasonBERT-RoBERTa-base, xlm-roberta-large
+    pool: avg
+    layer: mix
+    dropout: 0.1
+    batch_size: 4
+    train_data: # relative path to dataset
+    validation_data: # relative path to dataset
+    hidden_sizes:
+      - 2048
+      - 1024
+    activations: Tanh
+    # causal, PARENT PRECISION
+    # load_weights_from_checkpoint: TODO can modify this
+trainer: ../trainer.yaml
+early_stopping: ../early_stopping.yaml
+model_checkpoint: ../model_checkpoint.yaml

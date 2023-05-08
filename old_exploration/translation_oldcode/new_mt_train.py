@@ -1,7 +1,7 @@
 # Pipeline for training to get a causal model that matches some metric
 import sys
 sys.path.insert(1, '/mnt/data1/prasann/latticegen/lattice-generation/COMET')
-from COMET.comet.models.regression.referenceless import ReferencelessRegression
+from tfr_models.comet.models.regression.referenceless import ReferencelessRegression
 from transformers import AutoModel, AutoTokenizer
 import torch
 import torch.nn as nn

@@ -18,7 +18,7 @@ from transformers import AutoModel
 import sys
 sys.path.insert(1, '/mnt/data1/prasann/latticegen/lattice-generation/COMET')
 
-from COMET.comet.models import load_from_checkpoint as lfc
+from tfr_models.comet.models import load_from_checkpoint as lfc
 
 # Returns Token Scores For Each (Sum becomes Regression)
 class XLMCometEmbeds(nn.Module):

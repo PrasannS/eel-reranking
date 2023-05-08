@@ -8,7 +8,8 @@ import random
 import nltk
 from encode_utils.mt_scores import get_scores_auto
 import encode_utils.rerank_data as rd
-from parent_explore.stagewise_finetune.parent_master.parent import parent_score_df
+# PARENT score
+from encode_utils.parent import parent_score_df
 
 
 PKLBASE = "outputs/graph_pickles/"
