@@ -1,4 +1,4 @@
-# [Massive-scale Decoding for Text Generation using Lattices](https://arxiv.org/abs/2112.07660)
+# EEL: Efficiently Encoding Lattices for Reranking (preprint coming soon)
 [Prasann Singhal](https://prasanns.github.io/), [Jiacheng Xu](https://jiacheng-xu.github.io/), [Xi Ye](https://www.cs.utexas.edu/~xiye/), [Greg Durrett](https://www.cs.utexas.edu/~gdurrett/)
 
 
