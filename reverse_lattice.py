@@ -115,21 +115,21 @@ def explode_graphs(reversedir, newname, nodelim=1000):
         os.mkdir(newbase)
     ind = 0
     for g in graphpaths:
-        try:
-            with open("./outputs/graph_pickles/"+"nounsum_reversed/"+str(ind), "rb") as file:
-                tmpcheck = pickle.load(file)
-                print(len(tmpcheck.keys()))
-                if len(tmpcheck.keys())>nodelim:
-                    ind+=1
-                    continue
-            acands = get_all_possible_candidates(srcbase+g, False)
-            if acands[0] is not None:
-                filehandler = open(newbase+str(ind), 'wb') 
-                pickle.dump(acands, filehandler)
-            else:
-                print("skip")
-        except:
-            print("Recursion Failed")
+        """
+        with open("./outputs/graph_pickles/"+"nounsum_reversed/"+str(ind), "rb") as file:
+            tmpcheck = pickle.load(file)
+            print(len(tmpcheck.keys()))
+            if len(tmpcheck.keys())>nodelim:
+                ind+=1
+                continue
+        """
+        acands = get_all_possible_candidates(srcbase+g, False)
+        if acands[0] is not None:
+            filehandler = open(newbase+str(ind), 'wb') 
+            pickle.dump(acands, filehandler)
+        else:
+            print("skip")
+        
         print(ind)
         ind+=1
 
@@ -165,11 +165,12 @@ if __name__ == "__main__":
     explode_graphs("mt1n_en-ru_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_mtenru_beam50", 10000)
     """
     
-    reverse_save_graphs("table_to_text_table_to_text_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_tabtotext_beam12")
-    explode_graphs("table_to_text_table_to_text_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_tabtotext_beam12", 100000)
+    #reverse_save_graphs("table_to_text_table_to_text_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_tabtotext_beam12")
+    #explode_graphs("table_to_text_table_to_text_bs_12_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_tabtotext_beam12", 100000)
 
-    reverse_save_graphs("table_to_text_table_to_text_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_tabtotext_beam50")
-    explode_graphs("table_to_text_table_to_text_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_tabtotext_beam50", 100000)
+    #reverse_save_graphs("table_to_text_table_to_text_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "reversed_tabtotext_beam50")
+    #explode_graphs("table_to_text_table_to_text_bs_50_80_False_0.4_True_False_4_5_none_0.9_0.0_0.9", "exploded_tabtotext_beam50", 100000)
 
-    reverse_save_graphs("table_to_text_table_to_text_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "reversed_tabtotext_lattice")
-    explode_graphs("table_to_text_table_to_text_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "exploded_tabtotext_lattice", 100000)
+    #reverse_save_graphs("table_to_text_table_to_text_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "reversed_tabtotext_lattice")
+    #explode_graphs("table_to_text_table_to_text_bfs_recom_4_-1_False_0.4_True_False_4_5_rcb_0.903_0.0_0.9", "exploded_tabtotext_lattice", 100000)
+    explode_graphs("sum_xsum_bs_32_90_False_0.4_True_False_4_5_none_0.91_0.0_0.9", "xsum_train_32", 100000)

@@ -1,6 +1,6 @@
 import torch
 import random
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
 
 def bestprobsingle(mask, row, checknodes, mlen):

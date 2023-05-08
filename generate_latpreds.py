@@ -17,7 +17,7 @@ from encode_utils.rerank_data import rerank_df, rerank_single, rerank_rand, rera
 import time
 import random
 from ast import literal_eval
-device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 # set up information for set
 col = {

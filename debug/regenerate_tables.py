@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import random
 from generate_tables import metrics_mapping
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
 def regen_preds(inpcsv, scotype, lpair="en-de"):
     df = pd.read_csv("outputs/score_csvs/"+inpcsv, index_col=0)

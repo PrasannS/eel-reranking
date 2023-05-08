@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import re
 import time
-from encode_utils.efficient_rerank import run_comstyle_multi, run_comstyle
+from encode_utils.efficient_rerank import run_comstyle_multi
 
 # get token level scores from model, given hypothesis and input source
 def get_hyp_sco(inphyp, inpsrc, args):
@@ -92,7 +92,7 @@ def lattice_timing_experiment(ind, scofunct, afunc, args):
     stime = time.time()
     time8, time32, time48 = 0, 0, 0
     # Run experiment on 6 batches of 8 
-    while ind < len(ehyps):
+    while ind < 6:
         htmp = ehyps[ind*8:(ind+1)*8]
         batch_hyp_sco(list(srcs), list(htmp), args)
         if ind==0:
@@ -157,7 +157,7 @@ def lattice_multi_rerank(ind, n, scofunct, afunc, args):
     graph = pickle.load(open(base+str(ind), 'rb'))
     # generate with model
     bestpath , flattened, pnodes, mask, sents, posids, pred, _, \
-        flnodes, dpath, beplist, besclist, totnodes, bsco, timedict = run_comstyle_multi(graph, model, scofunct, goldmetric, {'afunc':afunc}, True, n)
+        flnodes, dpath, beplist, besclist, totnodes, bsco, timedict = run_comstyle_multi(graph, model, scofunct, goldmetric, {'afunc':afunc, 'defpos':args['defpos']}, True, n)
     assert graph['input']==bestcand['src']
     # get all appropriate inps
     ahyps = [bp[4:] for bp in bestpath]

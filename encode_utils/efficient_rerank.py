@@ -8,7 +8,7 @@ from .new_flatten_lattice import get_dictlist, detok
 from .sco_funct import onlyprob
 import time
 
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
 xlm_tok = detok
 
@@ -284,8 +284,11 @@ def run_comstyle_multi(graph, model, scofunct, outfile, params, extra=False, num
             # TODO increase efficiency with batching (also ensure mask gen on device)
             # pass everything in one batch
             enctime = time.time()
+            posids = posids.expand(hypshape)
+            if params['defpos']:
+                posids = None
             predout = model(toked_inp.input_ids.expand(inpshape), toked_inp.attention_mask.expand(inpshape) \
-                        , sents.expand(hypshape), posids.expand(hypshape), torch.stack(msks).to(device))
+                        , sents.expand(hypshape), posids, torch.stack(msks).to(device))
             enctime = time.time() - enctime
             # undo normalization since that happens later anyways
             pred = (predout['score'] * predout['norm']).cpu()

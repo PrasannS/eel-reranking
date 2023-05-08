@@ -17,7 +17,7 @@ from encode_utils.rerank_data import rerank_df, rerank_single, rerank_rand, rera
 import time
 import random
 from ast import literal_eval
-device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 # set up information for set
 col = {
@@ -40,7 +40,7 @@ col = {
     "tabtotext_b50": ['reversed_tabtotext_beam50/', 'parentbeam50.csv'],
     "tabtotext_lat": ['reversed_tabtotext_lattice/', 'parentlatticeexplode.csv']
 }
-curcol = "tabtotext_lat"
+curcol = "mt_fren"
 gsuffix = col[curcol][0]
 expl_fname = col[curcol][1]
 base = "outputs/graph_pickles/"+gsuffix
@@ -68,7 +68,7 @@ else:
     encodemod = get_effrerank_model("comstyle")
     xlm_tok = AutoTokenizer.from_pretrained("xlm-roberta-base")
 
-SETLEN = 100 #len(os.listdir(base))
+SETLEN = len(os.listdir(base))
 
 args = {
     'setlen':int(SETLEN),
@@ -87,6 +87,6 @@ args = {
 #args['efficient_eval']=True
 
 timingexpers = all_timing_experiment(default_scofunct, randomsingle, args)
-timingexpers.to_csv("timingparent.csv")
+timingexpers.to_csv("timingfren.csv")
 
 #latpreds.to_csv("outputs/predcsvs/parent_wadd12_valid.csv")

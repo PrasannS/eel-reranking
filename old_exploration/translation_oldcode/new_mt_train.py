@@ -13,7 +13,7 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from generate_utils.process_traindata import create_sortedbatch_data
 import random
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
 csv.field_size_limit(sys.maxsize)
 

@@ -221,92 +221,95 @@ def run_model(args, tokenizer, model, dataset, dec_prefix, wt_dir):
     logging.info(f"Truncate dataset to {nexample} examples")
 
     for idx, example in enumerate(tqdm(dataset)):
-        cnt += 1
-        if args.task.startswith('mt'):
-            document = example[0]
-            ref_sum = example[1]
-            inp = document
-            doc_id = idx
-        elif args.dataset == 'cnndm':
-            document = example['article']
-            doc_id = example['id']
-            ref_sum = example['highlights']
-        elif args.dataset == 'xsum':
-            # TODO switch back, hardcoding here
-            #document = example['document']
-            document = example[0]
-            sents = document.split('\n')
-            inp = "\n".join(sents[:10])[:5000]
-            ref_sum = example[1]
-            #ref_sum = example['summary']
-            #doc_id = example['id']
-            doc_id = idx
-        elif args.dataset == 'custom':
-            document = example[0]
-            ref_sum = example[1]
-            doc_id =  'undefined'
-            inp = document
-        elif args.task == 'table_to_text':
-            document = example[0]
-            ref_sum = example[1]
-            inp = document
-            doc_id = idx
-        else:
-            raise NotImplementedError("for customized dataset, use custom as the name of dataset and document|ref|uid for fields")
-        # if 'Apple' not in document:
-        #     continue
-        logging.info(f"\n\n===Input Doc/Src: {str(document)[:2000]}\n---Sum/Tgt: {ref_sum}")
-        param_sim_function = {
-            'ngram_suffix': args.ngram_suffix,
-            'len_diff': args.len_diff,
-            'merge': args.merge
-        }
-        config_search = {
-            'post': args.post,
-            'post_ratio': args.post_ratio,  # ratio of model calls left for post finishing
-            'dfs_expand': args.dfs_expand,
-            'heu': args.use_heu
-        }
-        combined_dict = {**config_search, **param_sim_function}
-        combined_dict['avgsco'] = args.avg_score
-        combined_dict['lenrwd'] = args.heu_seq_score_len_rwd
-        combined_dict['topp'] = args.top_p
+        try:
+            cnt += 1
+            if args.task.startswith('mt'):
+                document = example[0]
+                ref_sum = example[1]
+                inp = document
+                doc_id = idx
+            elif args.dataset == 'cnndm':
+                document = example['article']
+                doc_id = example['id']
+                ref_sum = example['highlights']
+            elif args.dataset == 'xsum':
+                # TODO switch back, hardcoding here
+                document = example['document']
+                #document = example[0]
+                sents = document.split('\n')
+                inp = "\n".join(sents[:10])[:5000]
+                #ref_sum = example[1]
+                ref_sum = example['summary']
+                doc_id = example['id']
+                #doc_id = idx
+            elif args.dataset == 'custom':
+                document = example[0]
+                ref_sum = example[1]
+                doc_id =  'undefined'
+                inp = document
+            elif args.task == 'table_to_text':
+                document = example[0]
+                ref_sum = example[1]
+                inp = document
+                doc_id = idx
+            else:
+                raise NotImplementedError("for customized dataset, use custom as the name of dataset and document|ref|uid for fields")
+            # if 'Apple' not in document:
+            #     continue
+            logging.info(f"\n\n===Input Doc/Src: {str(document)[:2000]}\n---Sum/Tgt: {ref_sum}")
+            param_sim_function = {
+                'ngram_suffix': args.ngram_suffix,
+                'len_diff': args.len_diff,
+                'merge': args.merge
+            }
+            config_search = {
+                'post': args.post,
+                'post_ratio': args.post_ratio,  # ratio of model calls left for post finishing
+                'dfs_expand': args.dfs_expand,
+                'heu': args.use_heu
+            }
+            combined_dict = {**config_search, **param_sim_function}
+            combined_dict['avgsco'] = args.avg_score
+            combined_dict['lenrwd'] = args.heu_seq_score_len_rwd
+            combined_dict['topp'] = args.top_p
 
-        config_name, fname = render_name(
-            args.task, args.dataset, args.model, doc_id, document[:10], args.beam_size, args.max_len, combined_dict)
-        fname += '.pkl'
-        Path(os.path.join(wt_dir, config_name)).mkdir(parents=True, exist_ok=True)
-        if os.path.exists(os.path.join(wt_dir, config_name, fname)):
-            logging.info(f"File exists. Skip.")
+            config_name, fname = render_name(
+                args.task, args.dataset, args.model, doc_id, document[:10], args.beam_size, args.max_len, combined_dict)
+            fname += '.pkl'
+            Path(os.path.join(wt_dir, config_name)).mkdir(parents=True, exist_ok=True)
+            if os.path.exists(os.path.join(wt_dir, config_name, fname)):
+                logging.info(f"File exists. Skip.")
+                if cnt > nexample:
+                    break
+                continue
+            
+            if args.model in ['dbs', 'bs', 'greedy', 'topp', 'temp']:
+                output = run_baseline(args, model, inp, dec_prefix)
+            elif args.model == 'bs_recom':
+                output = run_bs_recombination(
+                    args, model, inp, dec_prefix, param_sim_function)
+            elif args.model == 'sample_recom':
+                output = run_recom_sample(
+                    args, model, inp, dec_prefix, param_sim_function)
+            elif args.model == 'bfs_recom':
+                output = run_bfs_recombination(
+                    args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search=config_search)
+            elif args.model == 'bfs':
+                output = run_bfs(
+                    args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search=config_search)
+            output.reference = ref_sum
+            output.doc_id = doc_id
+            output.document = document
+            output.args = args
+
+            with open(os.path.join(wt_dir, config_name, fname), 'wb') as fd:
+                pickle.dump(output, fd)
+
+            # break
             if cnt > nexample:
                 break
-            continue
-        
-        if args.model in ['dbs', 'bs', 'greedy', 'topp', 'temp']:
-            output = run_baseline(args, model, inp, dec_prefix)
-        elif args.model == 'bs_recom':
-            output = run_bs_recombination(
-                args, model, inp, dec_prefix, param_sim_function)
-        elif args.model == 'sample_recom':
-            output = run_recom_sample(
-                args, model, inp, dec_prefix, param_sim_function)
-        elif args.model == 'bfs_recom':
-            output = run_bfs_recombination(
-                args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search=config_search)
-        elif args.model == 'bfs':
-            output = run_bfs(
-                args, model, tokenizer, inp, dec_prefix, param_sim_function, config_search=config_search)
-        output.reference = ref_sum
-        output.doc_id = doc_id
-        output.document = document
-        output.args = args
-
-        with open(os.path.join(wt_dir, config_name, fname), 'wb') as fd:
-            pickle.dump(output, fd)
-
-        # break
-        if cnt > nexample:
-            break
+        except:
+            print("something failed")
 
 
 if __name__ == "__main__":

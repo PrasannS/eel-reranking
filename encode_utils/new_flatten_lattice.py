@@ -1,5 +1,5 @@
 import torch
-device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 from transformers import AutoTokenizer
 import pickle
 import copy
@@ -36,10 +36,10 @@ base = "frtest_reversed/"
 #toker = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
 # TODO SWITCH for MT vs XSUM lattices
 #toker = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")
-TOKER = "table"
+TOKER = "mt"
 # TODO switch need to change default back for all other lattices
 if TOKER == 'mt':
-    toker = AutoTokenizer.from_pretrained("xlm-roberta-base")
+    toker = AutoTokenizer.from_pretrained("facebook/mbart-large-50-many-to-one-mmt")
     detok = AutoTokenizer.from_pretrained("xlm-roberta-base")
 if TOKER == 'xsum':
     toker = AutoTokenizer.from_pretrained("facebook/bart-large-xsum")

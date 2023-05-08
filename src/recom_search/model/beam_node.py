@@ -16,8 +16,11 @@ class BeamNode(ABC):
         self.prev_score = prev_score
         self.token_idx = token_idx
 
-        self.token_str = tokenizer.decode(
-            self.token_idx, skip_special_tokens=False) if tokenizer else f"{token_idx}"
+        if self.token_idx:
+            self.token_str = tokenizer.decode(
+                self.token_idx, skip_special_tokens=False) if tokenizer else f"{token_idx}"
+        else:
+            self.token_str = ""
 
         self.finished = finished
         self.min_len = min_len
@@ -70,8 +73,11 @@ class BeamNode(ABC):
         return split_tok.join(out)
 
     def get_token_idx_as_input(self):
-        tokens = self.all_token_idx
-        dec_prefix = torch.tensor([tokens], dtype=torch.long)
+        try:
+            tokens = self.all_token_idx
+            dec_prefix = torch.tensor([tokens], dtype=torch.long)
+        except:
+            dec_prefix = None
         return dec_prefix
         
     def get_score_sum(self):

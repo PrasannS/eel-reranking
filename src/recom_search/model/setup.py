@@ -4,20 +4,17 @@ import logging
 from datasets import load_dataset
 import argparse
 import torch
-from transformers import BartTokenizer, BartForConditionalGeneration
+from transformers import BartForConditionalGeneration, T5ForConditionalGeneration
 import pandas as pd
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoTokenizer
 import torch
-from transformers import T5ForConditionalGeneration, AutoConfig
-from parent_explore.stagewise_finetune.src.finetune_t5_mod import SummarizationModule
-import pickle
+from transformers import AutoConfig
+
 import argparse
-import pytorch_lightning as pl
 import os
 from transformers import AutoConfig, AutoModelForSeq2SeqLM,AutoTokenizer
 import os
 import random
-from . import mt_data
 import pandas as pd
 
 random.seed(2021)
@@ -110,12 +107,17 @@ inpargs = """
 --eval_beams 16
 """.split()
 
-def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cuda:0'):
+def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum', device_name='cuda:1'):
     device = torch.device(device_name)
     print(model_name)
     
     if task == 'table_to_text':
-        tokenizer = AutoTokenizer.from_pretrained("facebook/bart-base")
+        usebart=False
+        if usebart:
+            tokenizer = AutoTokenizer.from_pretrained("facebook/bart-base")
+        else:
+            tokenizer = AutoTokenizer.from_pretrained("t5-large")
+
         new_tokens = ['<H>', '<R>', '<T>']
         new_tokens_vocab = {}
         new_tokens_vocab['additional_special_tokens'] = []
@@ -123,42 +125,39 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
             new_tokens_vocab['additional_special_tokens'].append(t)
         num_added_toks = tokenizer.add_special_tokens(new_tokens_vocab)
         # first get cond gen model
-        ckpt = torch.load("/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/plms-graph2text/webnlg-bart-base.ckpt")
+        if usebart:
+            ckpt = torch.load("/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/plms-graph2text/webnlg-bart-base.ckpt")
+        else:
+            ckpt = torch.load("/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/plms-graph2text/webnlg-t5-large.ckpt")          
         state_dict = ckpt['state_dict']
         # make weight keys compatible 
         for key in list(state_dict.keys()):
             if key[:len("model.")]=="model.":
                 state_dict[key[len("model."):]] = state_dict.pop(key)
-        model = BartForConditionalGeneration.from_pretrained(
-            "facebook/bart-base", state_dict=ckpt['state_dict'], vocab_size=50268
-        )
-        datadf = pd.read_csv("/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/stagewise_finetune/parent-master/wnlg_testset_bart.csv")
-        slines = list(datadf['src'])
-        tlines = list(datadf['ref'])
-        dataset = zip(slines, tlines)
-        dec_prefix = [tokenizer.eos_token_id]
-        # logging.info(f"DEC PREFIX {tokenizer.decode(dec_prefix)}") # TODO what's the purpose of this?
-    """
-    if task == 'unused':
-        #del model
-        #del tokenizer 
-        # TODO modify these for the setting
-        parser = argparse.ArgumentParser()
-        parser = pl.Trainer.add_argparse_args(parser)
-        parser = SummarizationModule.add_model_specific_args(parser, os.getcwd())
-        # process stuff from inpargs
-        args = parser.parse_args(inpargs)
+        if usebart:
+            model = BartForConditionalGeneration.from_pretrained(
+                "facebook/bart-base", state_dict=ckpt['state_dict'], vocab_size=50268
+            ).to(device)
+        else:
+            model = T5ForConditionalGeneration.from_pretrained(
+                "t5-large", state_dict=ckpt['state_dict'], vocab_size=tokenizer.vocab_size+num_added_toks
+            ).to(device)
+        model.eval()
+        train = True
+        if train:
+            datadf = pd.read_csv("/mnt/data1/prasann/tfr-decoding/tmp_data/webnlg_train.csv")
+            tlines = list(datadf['reference'])
+        else:
+            datadf = pd.read_csv("/mnt/data1/prasann/latticegen/lattice-generation/parent_explore/stagewise_finetune/parent_master/wnlg_testset_bart.csv")
+            tlines = list(datadf['ref'])
 
-        model = SummarizationModule(args)
-        # set this up correctly
-        model.eval_beams = args.beam_size
-        tokenizer = model.tokenizer
-        dataloader = model.get_dataloader("test", batch_size=1)
-        # TODO will this work cleanly?
-        dataset = dataloader
-        
-        dec_prefix = []
-    """
+        slines = list(datadf['src'])
+        dataset = zip(slines, tlines)
+        if usebart:
+            dec_prefix = [tokenizer.eos_token_id]
+        else:
+            dec_prefix = [0]
+        # logging.info(f"DEC PREFIX {tokenizer.decode(dec_prefix)}") # TODO what's the purpose of this?
     
         #logging.info(f"DEC PREFIX {tokenizer.decode(dec_prefix)}") # TODO what's the purpose of this?
     if task == 'custom':
@@ -180,11 +179,11 @@ def setup_model(task='sum', dataset='xsum', model_name='facebook/bart-large-xsum
         if dataset == 'xsum':
             print("using hard coded dataset")
             # TODO switch I am hard-coding this
-            datadf = pd.read_csv("/mnt/data1/prasann/latticegen/lattice-generation/mt-data/summarytestset.csv")
-            slines = list(datadf['src'])
-            tlines = list(datadf['ref'])
-            dataset = zip(slines, tlines)
-            #dataset = load_dataset("xsum", split='validation')
+            #datadf = pd.read_csv("/mnt/data1/prasann/latticegen/lattice-generation/mt-data/summarytestset.csv")
+            #slines = list(datadf['src'])
+            #tlines = list(datadf['ref'])
+            #dataset = zip(slines, tlines)
+            dataset = load_dataset("xsum", split='train')
         elif dataset == 'cnndm':
             raise NotImplementedError("not supported")
             dataset = load_dataset("cnn_dailymail", split='validation')
@@ -266,7 +265,7 @@ def process_arg():
     parser = argparse.ArgumentParser()
     parser.add_argument('-exploded', type=str, default="False")
 
-    parser.add_argument('-device', type=str, default='cuda:0', help='name of device, eg. cuda:0 or cpu')
+    parser.add_argument('-device', type=str, default='cuda:1', help='name of device, eg. cuda:1 or cpu')
     parser.add_argument("-model", type=str, choices=[
                         'dbs', 'bs', 'greedy', 'topp', 'temp', 'bs_recom', 'sample_recom', 'bfs','bfs_recom'], default='bs')
     parser.add_argument('-beam_size', type=int, default=15)
